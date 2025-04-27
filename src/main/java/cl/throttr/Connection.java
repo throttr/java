@@ -90,7 +90,7 @@ public class Connection implements AutoCloseable {
 
             try {
                 OutputStream out = socket.getOutputStream();
-                out.write(pending.buffer);
+                out.write(pending.buffer());
                 out.flush();
 
                 InputStream in = socket.getInputStream();
@@ -106,9 +106,9 @@ public class Connection implements AutoCloseable {
                 }
 
                 Response response = Response.fromBytes(responseBytes);
-                pending.future.complete(response);
+                pending.future().complete(response);
             } catch (IOException e) {
-                pending.future.completeExceptionally(e);
+                pending.future().completeExceptionally(e);
             } finally {
                 busy = false;
                 processQueue();
@@ -125,9 +125,4 @@ public class Connection implements AutoCloseable {
     public void close() throws IOException {
         socket.close();
     }
-
-    /**
-     * Pending Request
-     */
-    private record PendingRequest(byte[] buffer, CompletableFuture<Response> future) { }
 }
