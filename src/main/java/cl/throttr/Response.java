@@ -22,10 +22,10 @@ import java.nio.ByteOrder;
  * Response
  *
  * @param can
- * @param available_requests
+ * @param availableRequests
  * @param ttl
  */
-public record Response(boolean can, int available_requests, long ttl) {
+public record Response(boolean can, int availableRequests, long ttl) {
 
     /**
      * From bytes
@@ -38,9 +38,9 @@ public record Response(boolean can, int available_requests, long ttl) {
         buffer.order(ByteOrder.LITTLE_ENDIAN);
 
         boolean can = buffer.get() == 1;
-        int available_requests = buffer.getInt();
+        int availableRequests = buffer.getInt();
         long ttl = buffer.getLong();
 
-        return new Response(can, available_requests, ttl);
+        return new Response(can, availableRequests, ttl);
     }
 }

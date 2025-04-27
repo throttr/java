@@ -59,7 +59,7 @@ class ServiceTest {
 
         assertNotNull(response);
         assertTrue(response.can());
-        assertTrue(response.available_requests() >= 0);
+        assertTrue(response.availableRequests() >= 0);
         assertTrue(response.ttl() >= 0);
     }
 
@@ -125,10 +125,6 @@ class ServiceTest {
 
     @Test
     void testExhaustMaxRequests() throws Exception {
-        Service service = new Service("127.0.0.1", 9000, 1);
-
-        service.connect();
-
         Request request = new Request(
                 InetAddress.getByName("127.0.0.1"),
                 9000,
@@ -143,13 +139,13 @@ class ServiceTest {
             CompletableFuture<Response> future = service.send(request);
             Response response = future.get();
 
-            System.out.printf("Request #%d: allowed=%s, remaining=%d%n", i + 1, response.can(), response.available_requests());
+            System.out.printf("Request #%d: allowed=%s, remaining=%d%n", i + 1, response.can(), response.availableRequests());
 
             lastResponse = response;
         }
 
         assertNotNull(lastResponse);
         assertFalse(lastResponse.can());
-        assertEquals(0, lastResponse.available_requests());
+        assertEquals(0, lastResponse.availableRequests());
     }
 }
