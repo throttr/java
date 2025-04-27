@@ -1,0 +1,39 @@
+name: Build and Test
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    services:
+      throttr:
+        image: ghcr.io/throttr/throttr:1.0.0-release
+        ports:
+          - 9000:9000
+        options: >-
+          --health-cmd "bash -c 'echo > /dev/tcp/localhost/9000'" 
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Build project
+        run: mvn clean verify
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./target/site/jacoco/jacoco.xml
+          flags: unittests
+          name: codecov-report
+          token: ${{ secrets.CODECOV_TOKEN }}
