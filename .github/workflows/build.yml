@@ -26,9 +26,14 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '21'
+          server-id: github
+          server-username: GITHUB_ACTOR
+          server-password: GITHUB_TOKEN
 
       - name: Build project
-        run: mvn clean verify
+        run: mvn --batch-mode deploy
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
