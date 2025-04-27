@@ -11,7 +11,7 @@
 
     <name>Throttr SDK Java</name>
     <description>Throttr Java SDK for ultra-fast rate limiting.</description>
-    <url>https://github.com/USERNAME/throttr-sdk-java</url>
+    <url>https://github.com/throttr/java</url>
 
     <licenses>
         <license>
