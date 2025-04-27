@@ -34,7 +34,12 @@ jobs:
           server-username: GITHUB_ACTOR
           server-password: GITHUB_TOKEN
 
-      - name: Build project
+      - name: Build and test
+        if: ${{ github.ref_type != 'tag' }}
+        run: mvn clean verify
+
+      - name: Release
+        if: ${{ github.ref_type == 'tag' }}
         run: mvn --batch-mode deploy
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
