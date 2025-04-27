@@ -121,4 +121,35 @@ class ServiceTest {
             new Service("127.0.0.1", 9000, -5);
         });
     }
+
+
+    @Test
+    void testExhaustMaxRequests() throws Exception {
+        Service service = new Service("127.0.0.1", 9000, 1);
+
+        service.connect();
+
+        Request request = new Request(
+                InetAddress.getByName("127.0.0.1"),
+                9000,
+                "/throttr",
+                5,
+                1000
+        );
+
+        Response lastResponse = null;
+
+        for (int i = 0; i < 6; i++) {
+            CompletableFuture<Response> future = service.send(request);
+            Response response = future.get();
+
+            System.out.printf("Request #%d: allowed=%s, remaining=%d%n", i + 1, response.can(), response.available_requests());
+
+            lastResponse = response;
+        }
+
+        assertNotNull(lastResponse);
+        assertFalse(lastResponse.can());
+        assertEquals(0, lastResponse.available_requests());
+    }
 }
