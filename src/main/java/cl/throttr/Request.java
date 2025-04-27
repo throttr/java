@@ -38,22 +38,22 @@ public record Request(InetAddress ip, int port, String url, int max_requests, lo
      * @return byte[]
      */
     public byte[] toBytes() {
-        var url_bytes = url.getBytes(StandardCharsets.UTF_8);
-        var buffer = ByteBuffer.allocate(28 + url_bytes.length);
+        var urlBytes = url.getBytes(StandardCharsets.UTF_8);
+        var buffer = ByteBuffer.allocate(28 + urlBytes.length);
         buffer.order(ByteOrder.LITTLE_ENDIAN);
 
-        byte[] ip_bytes = ip.getAddress();
-        buffer.put((byte) ip_bytes.length);
+        byte[] ipAddress = ip.getAddress();
+        buffer.put((byte) ipAddress.length);
 
-        byte[] ip_padded = new byte[16];
-        System.arraycopy(ip_bytes, 0, ip_padded, 0, ip_bytes.length);
-        buffer.put(ip_padded);
+        byte[] ipPadded = new byte[16];
+        System.arraycopy(ipAddress, 0, ipPadded, 0, ipAddress.length);
+        buffer.put(ipPadded);
 
         buffer.putShort((short) port);
         buffer.putInt(max_requests);
         buffer.putInt((int) ttl);
-        buffer.put((byte) url_bytes.length);
-        buffer.put(url_bytes);
+        buffer.put((byte) urlBytes.length);
+        buffer.put(urlBytes);
 
         return buffer.array();
     }
@@ -61,17 +61,17 @@ public record Request(InetAddress ip, int port, String url, int max_requests, lo
     /**
      * From
      *
-     * @param ip_address IP address
+     * @param ipAddress IP address
      * @param port Port
      * @param url URL
-     * @param max_requests Maximum requests
+     * @param maxRequests Maximum requests
      * @param ttl TTL
      * @return Request
      *
      * @throws UnknownHostException If no IP address for the host could be found
      */
-    public static Request from(String ip_address, int port, String url, int max_requests, long ttl) throws UnknownHostException {
-        var ip = InetAddress.getByName(ip_address);
-        return new Request(ip, port, url, max_requests, ttl);
+    public static Request from(String ipAddress, int port, String url, int maxRequests, long ttl) throws UnknownHostException {
+        var ip = InetAddress.getByName(ipAddress);
+        return new Request(ip, port, url, maxRequests, ttl);
     }
 }

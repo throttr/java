@@ -33,7 +33,7 @@ class ResponseTest {
         var response = Response.fromBytes(responseBytes);
 
         assertTrue(response.can());
-        assertEquals(4, response.available_requests());
+        assertEquals(4, response.availableRequests());
         assertEquals(10000, response.ttl());
     }
 }

@@ -55,15 +55,15 @@ public class Service implements AutoCloseable {
      *
      * @param host Host
      * @param port Port
-     * @param max_connections Max Connections
+     * @param maxConnections Max Connections
      */
-    public Service(String host, int port, int max_connections) {
-        if (max_connections <= 0) {
+    public Service(String host, int port, int maxConnections) {
+        if (maxConnections <= 0) {
             throw new IllegalArgumentException("maxConnections must be greater than 0.");
         }
         this.host = host;
         this.port = port;
-        this.maxConnections = max_connections;
+        this.maxConnections = maxConnections;
     }
 
     /**

@@ -19,7 +19,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
-import java.net.UnknownHostException;
 import java.util.Queue;
 import java.util.LinkedList;
 import java.util.concurrent.CompletableFuture;
@@ -49,10 +48,9 @@ public class Connection implements AutoCloseable {
      * @param host Remote address
      * @param port Port
      * @throws IOException              If an I/O error occurs when creating the socket
-     * @throws UnknownHostException     – If the IP address of the host could not be determined
      * @throws IllegalArgumentException If used port isn't between 0 and 65535
      */
-    public Connection(String host, int port) throws IOException, UnknownHostException, IllegalArgumentException {
+    public Connection(String host, int port) throws IOException, IllegalArgumentException {
         this.socket = new Socket(host, port);
     }
 
@@ -90,7 +88,7 @@ public class Connection implements AutoCloseable {
 
             try {
                 OutputStream out = socket.getOutputStream();
-                out.write(pending.buffer);
+                out.write(pending.buffer());
                 out.flush();
 
                 InputStream in = socket.getInputStream();
@@ -106,9 +104,9 @@ public class Connection implements AutoCloseable {
                 }
 
                 Response response = Response.fromBytes(responseBytes);
-                pending.future.complete(response);
+                pending.future().complete(response);
             } catch (IOException e) {
-                pending.future.completeExceptionally(e);
+                pending.future().completeExceptionally(e);
             } finally {
                 busy = false;
                 processQueue();
@@ -125,9 +123,4 @@ public class Connection implements AutoCloseable {
     public void close() throws IOException {
         socket.close();
     }
-
-    /**
-     * Pending Request
-     */
-    private record PendingRequest(byte[] buffer, CompletableFuture<Response> future) { }
 }
