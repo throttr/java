@@ -5,8 +5,42 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>cl.throttr</groupId>
-    <artifactId>throttr-java</artifactId>
+    <artifactId>sdk</artifactId>
     <version>1.0.0</version>
+    <packaging>jar</packaging>
+
+    <name>Throttr SDK Java</name>
+    <description>Throttr Java SDK for ultra-fast rate limiting.</description>
+    <url>https://github.com/throttr/java</url>
+
+    <licenses>
+        <license>
+            <name>GNU Affero General Public License v3.0</name>
+            <url>https://www.gnu.org/licenses/agpl-3.0.html</url>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <id>zen0x7</id>
+            <name>Ian Torres</name>
+            <email>iantorres@outlook.com</email>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:git://github.com/throttr/java.git</connection>
+        <developerConnection>scm:git:ssh://github.com:throttr/java.git</developerConnection>
+        <url>https://github.com/throttr/java</url>
+    </scm>
+
+    <distributionManagement>
+        <repository>
+            <id>github</id>
+            <name>GitHub Packages</name>
+            <url>https://maven.pkg.github.com/throttr/java</url>
+        </repository>
+    </distributionManagement>
 
     <repositories>
         <repository>
