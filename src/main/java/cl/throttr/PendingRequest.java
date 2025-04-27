@@ -20,27 +20,18 @@ import java.util.Arrays;
 
 /**
  * Pending Request
+ *
+ * @param buffer Buffer
+ * @param future Future
  */
-final class PendingRequest {
-    /**
-     * Buffer
-     */
-    private final byte[] buffer;
-
-    /**
-     * Future
-     */
-    private final CompletableFuture<Response> future;
-
+record PendingRequest(byte[] buffer, CompletableFuture<Response> future) {
     /**
      * Constructor
      *
      * @param buffer Buffer
      * @param future Promise
      */
-    PendingRequest(byte[] buffer, CompletableFuture<Response> future) {
-        this.buffer = buffer;
-        this.future = future;
+    PendingRequest {
     }
 
     /**
@@ -48,6 +39,7 @@ final class PendingRequest {
      *
      * @return byte[]
      */
+    @Override
     public byte[] buffer() {
         return buffer;
     }
@@ -57,6 +49,7 @@ final class PendingRequest {
      *
      * @return CompletableFuture<Response>
      */
+    @Override
     public CompletableFuture<Response> future() {
         return future;
     }
@@ -70,9 +63,9 @@ final class PendingRequest {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof PendingRequest that)) return false;
-        return Arrays.equals(buffer, that.buffer) &&
-                future.equals(that.future);
+        if (!(o instanceof PendingRequest(byte[] buffer1, CompletableFuture<Response> future1))) return false;
+        return Arrays.equals(buffer, buffer1) &&
+                future.equals(future1);
     }
 
     /**
