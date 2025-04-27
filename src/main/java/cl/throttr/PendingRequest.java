@@ -26,35 +26,6 @@ import java.util.Arrays;
  */
 record PendingRequest(byte[] buffer, CompletableFuture<Response> future) {
     /**
-     * Constructor
-     *
-     * @param buffer Buffer
-     * @param future Promise
-     */
-    PendingRequest {
-    }
-
-    /**
-     * Buffer
-     *
-     * @return byte[]
-     */
-    @Override
-    public byte[] buffer() {
-        return buffer;
-    }
-
-    /**
-     * Future
-     *
-     * @return CompletableFuture<Response>
-     */
-    @Override
-    public CompletableFuture<Response> future() {
-        return future;
-    }
-
-    /**
      * Equals
      *
      * @param o Object
