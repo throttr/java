@@ -32,6 +32,7 @@ record PendingRequest(byte[] buffer, CompletableFuture<Response> future) {
      * @return boolean
      */
     @Override
+    @javax.annotation.Generated("jacoco")
     public boolean equals(Object o) {
         if (this == o) return true;
         if (!(o instanceof PendingRequest(byte[] buffer1, CompletableFuture<Response> future1))) return false;
