@@ -18,8 +18,11 @@ package cl.throttr;
 import org.junit.jupiter.api.Test;
 
 import java.net.InetAddress;
+import java.net.UnknownHostException;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class RequestTest {
 
@@ -42,5 +45,23 @@ class RequestTest {
         };
 
         assertArrayEquals(expected, actual);
+    }
+
+    @Test
+    void testFromMethodCreatesCorrectRequest() throws UnknownHostException {
+        String ipAddress = "127.0.0.1";
+        int port = 8080;
+        String url = "/test";
+        int maxRequests = 5;
+        long ttl = 10000;
+
+        Request request = Request.from(ipAddress, port, url, maxRequests, ttl);
+
+        assertNotNull(request);
+        assertEquals(InetAddress.getByName(ipAddress), request.ip());
+        assertEquals(port, request.port());
+        assertEquals(url, request.url());
+        assertEquals(maxRequests, request.max_requests());
+        assertEquals(ttl, request.ttl());
     }
 }

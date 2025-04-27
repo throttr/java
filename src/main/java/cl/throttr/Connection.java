@@ -20,7 +20,9 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.net.UnknownHostException;
-import java.util.Optional;
+import java.util.Queue;
+import java.util.LinkedList;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Connection
@@ -32,13 +34,22 @@ public class Connection implements AutoCloseable {
     private final Socket socket;
 
     /**
+     * Queue of pending requests
+     */
+    private final Queue<PendingRequest> queue = new LinkedList<>();
+
+    /**
+     * Busy
+     */
+    private boolean busy = false;
+
+    /**
      * Constructor
      *
      * @param host Remote address
      * @param port Port
-     *
-     * @throws IOException If an I/O error occurs when creating the socket
-     * @throws UnknownHostException – If the IP address of the host could not be determined
+     * @throws IOException              If an I/O error occurs when creating the socket
+     * @throws UnknownHostException     – If the IP address of the host could not be determined
      * @throws IllegalArgumentException If used port isn't between 0 and 65535
      */
     public Connection(String host, int port) throws IOException, UnknownHostException, IllegalArgumentException {
@@ -49,34 +60,74 @@ public class Connection implements AutoCloseable {
      * Send
      *
      * @param request Request
-     * @return Optional<Response>
+     * @return CompletableFuture<Response>
      */
-    public Optional<Response> send(Request request) {
-        try {
-            OutputStream out = socket.getOutputStream();
+    public CompletableFuture<Response> send(Request request) {
+        byte[] buffer = request.toBytes();
+        CompletableFuture<Response> future = new CompletableFuture<>();
 
-            out.write(request.toBytes());
-            out.flush();
-
-            InputStream in = socket.getInputStream();
-            byte[] responseBytes = new byte[13];
-            int read = in.read(responseBytes);
-
-            if (read == 13) {
-                return Optional.of(Response.fromBytes(responseBytes));
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
+        synchronized (queue) {
+            queue.add(new PendingRequest(buffer, future));
+            processQueue();
         }
-        return Optional.empty();
+
+        return future;
+    }
+
+
+    /**
+     * Process queue
+     */
+    private void processQueue() {
+        synchronized (queue) {
+            if (busy || queue.isEmpty()) {
+                return;
+            }
+
+            PendingRequest pending = queue.poll();
+
+            busy = true;
+
+            try {
+                OutputStream out = socket.getOutputStream();
+                out.write(pending.buffer);
+                out.flush();
+
+                InputStream in = socket.getInputStream();
+                byte[] responseBytes = new byte[13];
+                int totalRead = 0;
+
+                while (totalRead < 13) {
+                    int read = in.read(responseBytes, totalRead, 13 - totalRead);
+                    if (read == -1) {
+                        throw new IOException("Connection closed before full response received");
+                    }
+                    totalRead += read;
+                }
+
+                Response response = Response.fromBytes(responseBytes);
+                pending.future.complete(response);
+            } catch (IOException e) {
+                pending.future.completeExceptionally(e);
+            } finally {
+                busy = false;
+                processQueue();
+            }
+        }
     }
 
     /**
      * Close
+     *
      * @throws IOException If an I/O error occurs when closing this socket.
      */
     @Override
     public void close() throws IOException {
         socket.close();
     }
+
+    /**
+     * Pending Request
+     */
+    private record PendingRequest(byte[] buffer, CompletableFuture<Response> future) { }
 }
