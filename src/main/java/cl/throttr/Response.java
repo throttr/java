@@ -19,28 +19,30 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
 /**
- * Response
- *
- * @param can
- * @param availableRequests
- * @param ttl
+ * Response class representing the server's response to a request.
+ * It contains the information about whether the request can be processed,
+ * the available number of requests, and the remaining TTL (Time-to-live).
  */
 public record Response(boolean can, int availableRequests, long ttl) {
 
     /**
-     * From bytes
+     * Converts a byte array (response from the server) into a Response object.
+     * The expected response format is:
+     *  - can (boolean) indicating if the request can be processed
+     *  - availableRequests (integer) the number of remaining requests allowed
+     *  - ttl (long) the remaining TTL
      *
-     * @param data Bytes
-     * @return Response
+     * @param data The byte array representing the response from the server
+     * @return Response The parsed response object
      */
     public static Response fromBytes(byte[] data) {
         var buffer = ByteBuffer.wrap(data);
         buffer.order(ByteOrder.LITTLE_ENDIAN);
 
-        boolean can = buffer.get() == 1;
-        int availableRequests = buffer.getInt();
-        long ttl = buffer.getLong();
+        boolean can = buffer.get() == 1; // First byte indicates whether the request can be processed
+        int availableRequests = buffer.getInt(); // Next 4 bytes represent available requests
+        long ttl = buffer.getLong(); // Last 8 bytes represent the remaining TTL
 
-        return new Response(can, availableRequests, ttl);
+        return new Response(can, availableRequests, ttl); // Return a new Response object
     }
 }

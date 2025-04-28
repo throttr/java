@@ -19,31 +19,31 @@ import java.util.concurrent.CompletableFuture;
 import java.util.Arrays;
 
 /**
- * Pending Request
+ * Pending request represents a request in the queue that is yet to be processed.
  *
- * @param buffer Buffer
- * @param future Future
+ * @param buffer The byte array containing the request data to be sent
+ * @param future The future object that will eventually hold the response
  */
 record PendingRequest(byte[] buffer, CompletableFuture<Response> future) {
+
     /**
-     * Equals
+     * Checks equality between this PendingRequest and another object.
      *
-     * @param o Object
-     * @return boolean
+     * @param o The object to compare with
+     * @return boolean True if the objects are equal, false otherwise
      */
     @Override
     @javax.annotation.Generated("jacoco")
     public boolean equals(Object o) {
         if (this == o) return true;
         if (!(o instanceof PendingRequest(byte[] buffer1, CompletableFuture<Response> future1))) return false;
-        return Arrays.equals(buffer, buffer1) &&
-                future.equals(future1);
+        return Arrays.equals(buffer, buffer1) && future.equals(future1);
     }
 
     /**
-     * Hash code
+     * Generates a hash code for the PendingRequest.
      *
-     * @return int
+     * @return int The hash code value
      */
     @Override
     public int hashCode() {
@@ -53,9 +53,9 @@ record PendingRequest(byte[] buffer, CompletableFuture<Response> future) {
     }
 
     /**
-     * To string
+     * Provides a string representation of the PendingRequest.
      *
-     * @return String
+     * @return String A string representation of the PendingRequest object
      */
     @Override
     public String toString() {

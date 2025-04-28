@@ -12,7 +12,6 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
-
 package cl.throttr;
 
 import java.nio.ByteBuffer;
@@ -22,20 +21,21 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 
 /**
- * Request
- *
- * @param ip
- * @param port
- * @param url
- * @param max_requests
- * @param ttl
+ * Request class representing the structure of the request to be sent to the Throttr server.
+ * It holds information about the consumer, resource, maximum requests, and TTL (Time-to-Live).
  */
 public record Request(InetAddress ip, int port, String url, int max_requests, long ttl) {
 
     /**
-     * To bytes
+     * Converts the Request to a byte array to be sent over the network.
+     * The format includes:
+     *  - Consumer IP address (padded to 16 bytes)
+     *  - Port number
+     *  - Maximum requests
+     *  - TTL
+     *  - URL (UTF-8 encoded)
      *
-     * @return byte[]
+     * @return byte[] The byte array representing the request
      */
     public byte[] toBytes() {
         var urlBytes = url.getBytes(StandardCharsets.UTF_8);
@@ -43,32 +43,32 @@ public record Request(InetAddress ip, int port, String url, int max_requests, lo
         buffer.order(ByteOrder.LITTLE_ENDIAN);
 
         byte[] ipAddress = ip.getAddress();
-        buffer.put((byte) ipAddress.length);
+        buffer.put((byte) ipAddress.length); // Length of the IP address
 
-        byte[] ipPadded = new byte[16];
+        byte[] ipPadded = new byte[16]; // Padding the IP to 16 bytes
         System.arraycopy(ipAddress, 0, ipPadded, 0, ipAddress.length);
-        buffer.put(ipPadded);
+        buffer.put(ipPadded); // IP Address
 
-        buffer.putShort((short) port);
-        buffer.putInt(max_requests);
-        buffer.putInt((int) ttl);
-        buffer.put((byte) urlBytes.length);
-        buffer.put(urlBytes);
+        buffer.putShort((short) port); // Port
+        buffer.putInt(max_requests); // Max requests
+        buffer.putInt((int) ttl); // TTL (Time-to-live)
+        buffer.put((byte) urlBytes.length); // Length of the URL
+        buffer.put(urlBytes); // URL
 
         return buffer.array();
     }
 
     /**
-     * From
+     * Static factory method to create a Request from given parameters.
+     * This method is used to convert string representations of the IP address into InetAddress objects.
      *
-     * @param ipAddress IP address
-     * @param port Port
-     * @param url URL
-     * @param maxRequests Maximum requests
-     * @param ttl TTL
-     * @return Request
-     *
-     * @throws UnknownHostException If no IP address for the host could be found
+     * @param ipAddress IP address as a string
+     * @param port Port number
+     * @param url URL as a string
+     * @param maxRequests Maximum number of requests
+     * @param ttl Time-to-live
+     * @return Request The constructed Request object
+     * @throws UnknownHostException If the IP address cannot be resolved
      */
     public static Request from(String ipAddress, int port, String url, int maxRequests, long ttl) throws UnknownHostException {
         var ip = InetAddress.getByName(ipAddress);

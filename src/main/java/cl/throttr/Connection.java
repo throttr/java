@@ -24,11 +24,12 @@ import java.util.LinkedList;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Connection
+ * Represents a connection to the Throttr server.
+ * Handles sending requests and receiving responses.
  */
 public class Connection implements AutoCloseable {
     /**
-     * Socket
+     * The socket for communication with the server
      */
     private final Socket socket;
 
@@ -38,27 +39,27 @@ public class Connection implements AutoCloseable {
     private final Queue<PendingRequest> queue = new LinkedList<>();
 
     /**
-     * Busy
+     * Indicates if the connection is currently processing a request
      */
     private boolean busy = false;
 
     /**
      * Constructor
      *
-     * @param host Remote address
-     * @param port Port
-     * @throws IOException              If an I/O error occurs when creating the socket
-     * @throws IllegalArgumentException If used port isn't between 0 and 65535
+     * @param host The remote server host
+     * @param port The port for the connection
+     * @throws IOException If an error occurs while creating the socket
+     * @throws IllegalArgumentException If the port is out of range (0-65535)
      */
     public Connection(String host, int port) throws IOException, IllegalArgumentException {
         this.socket = new Socket(host, port);
     }
 
     /**
-     * Send
+     * Sends a request to the server and returns a CompletableFuture of the response.
      *
-     * @param request Request
-     * @return CompletableFuture<Response>
+     * @param request The request to be sent
+     * @return CompletableFuture<Response> The future containing the response
      */
     public CompletableFuture<Response> send(Request request) {
         byte[] buffer = request.toBytes();
@@ -72,9 +73,9 @@ public class Connection implements AutoCloseable {
         return future;
     }
 
-
     /**
-     * Process queue
+     * Processes the queue of pending requests.
+     * If the connection is not busy, it sends the next request.
      */
     private void processQueue() {
         synchronized (queue) {
@@ -95,6 +96,7 @@ public class Connection implements AutoCloseable {
                 byte[] responseBytes = new byte[13];
                 int totalRead = 0;
 
+                // Read the response in chunks
                 while (totalRead < 13) {
                     int read = in.read(responseBytes, totalRead, 13 - totalRead);
                     if (read == -1) {
@@ -115,9 +117,9 @@ public class Connection implements AutoCloseable {
     }
 
     /**
-     * Close
+     * Closes the connection, releasing resources.
      *
-     * @throws IOException If an I/O error occurs when closing this socket.
+     * @throws IOException If an I/O error occurs when closing the socket
      */
     @Override
     public void close() throws IOException {

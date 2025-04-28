@@ -22,40 +22,41 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Service
+ * Service class that manages multiple connections and handles sending requests to the Throttr server.
+ * It uses round-robin load balancing across multiple connections.
  */
 public class Service implements AutoCloseable {
     /**
-     * Connections
+     * List of connections to the Throttr server
      */
     private final List<Connection> connections = new ArrayList<>();
 
     /**
-     * Round-robin index
+     * Atomic index for round-robin load balancing
      */
     private final AtomicInteger roundRobinIndex = new AtomicInteger(0);
 
     /**
-     * Host
+     * Host of the Throttr server
      */
     private final String host;
 
     /**
-     * Port
+     * Port of the Throttr server
      */
     private final int port;
 
     /**
-     * Max connections
+     * Maximum number of connections allowed to the Throttr server
      */
     private final int maxConnections;
 
     /**
-     * Constructor
+     * Constructor for initializing the service with server host, port, and maximum connections.
      *
-     * @param host Host
-     * @param port Port
-     * @param maxConnections Max Connections
+     * @param host Host address of the server
+     * @param port Port number of the server
+     * @param maxConnections Maximum number of concurrent connections to the server
      */
     public Service(String host, int port, int maxConnections) {
         if (maxConnections <= 0) {
@@ -67,7 +68,7 @@ public class Service implements AutoCloseable {
     }
 
     /**
-     * Connect
+     * Establishes multiple connections to the Throttr server.
      *
      * @throws IOException If any connection fails
      */
@@ -79,10 +80,10 @@ public class Service implements AutoCloseable {
     }
 
     /**
-     * Send
+     * Sends a request to the server. The request is distributed across the available connections using round-robin.
      *
-     * @param request Request
-     * @return CompletableFuture<Response>
+     * @param request The request to send
+     * @return CompletableFuture<Response> The future containing the response from the server
      */
     public CompletableFuture<Response> send(Request request) {
         if (connections.isEmpty()) {
@@ -91,13 +92,14 @@ public class Service implements AutoCloseable {
             return future;
         }
 
+        // Round-robin logic to distribute requests across connections
         int index = roundRobinIndex.getAndUpdate(i -> (i + 1) % connections.size());
         Connection conn = connections.get(index);
         return conn.send(request);
     }
 
     /**
-     * Disconnect
+     * Closes all the connections and releases resources.
      */
     @Override
     public void close() {
@@ -105,7 +107,7 @@ public class Service implements AutoCloseable {
             try {
                 conn.close();
             } catch (IOException e) {
-                // Silent close
+                // Silent close, ignore the exception
             }
         }
         connections.clear();
