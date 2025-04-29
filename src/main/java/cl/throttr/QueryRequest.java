@@ -40,7 +40,7 @@ public record QueryRequest(
         );
         buffer.order(ByteOrder.LITTLE_ENDIAN);
 
-        buffer.put((byte) RequestType.Query.getValue());
+        buffer.put((byte) RequestType.QUERY.getValue());
         buffer.put((byte) consumerIdBytes.length);
         buffer.put((byte) resourceIdBytes.length);
         buffer.put(consumerIdBytes);

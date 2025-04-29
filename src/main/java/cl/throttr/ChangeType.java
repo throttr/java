@@ -19,9 +19,9 @@ package cl.throttr;
  * Attribute types
  */
 public enum ChangeType {
-    Patch(0),
-    Increase(1),
-    Decrease(2);
+    PATCH(0),
+    INCREASE(1),
+    DECREASE(2);
 
     private final int value;
 

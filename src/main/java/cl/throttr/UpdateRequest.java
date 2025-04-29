@@ -43,7 +43,7 @@ public record UpdateRequest(
         );
         buffer.order(ByteOrder.LITTLE_ENDIAN);
 
-        buffer.put((byte) RequestType.Update.getValue());
+        buffer.put((byte) RequestType.UPDATE.getValue());
         buffer.put((byte) attribute.getValue());
         buffer.put((byte) change.getValue());
         buffer.putLong(value);

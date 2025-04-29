@@ -19,9 +19,9 @@ package cl.throttr;
  * TTL types
  */
 public enum TTLType {
-    Nanoseconds(0),
-    Milliseconds(1),
-    Seconds(2);
+    NANOSECONDS(0),
+    MILLISECONDS(1),
+    SECONDS(2);
 
     private final int value;
 

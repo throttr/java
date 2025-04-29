@@ -44,7 +44,7 @@ public record InsertRequest(
         );
         buffer.order(ByteOrder.LITTLE_ENDIAN);
 
-        buffer.put((byte) RequestType.Insert.getValue());
+        buffer.put((byte) RequestType.INSERT.getValue());
         buffer.putLong(quota);
         buffer.putLong(usage);
         buffer.put((byte) ttlType.getValue());

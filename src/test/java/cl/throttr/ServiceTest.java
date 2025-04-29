@@ -19,7 +19,12 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import static org.awaitility.Awaitility.await;
+
+import java.time.Duration;
+
 import java.util.concurrent.CompletableFuture;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -46,7 +51,7 @@ class ServiceTest {
         String resourceId = "/api/test";
 
         CompletableFuture<Object> insertFuture = service.send(new InsertRequest(
-                5, 0, TTLType.Seconds, 5, consumerId, resourceId
+                5, 0, TTLType.SECONDS, 5, consumerId, resourceId
         ));
         FullResponse insert = (FullResponse) insertFuture.get();
 
@@ -68,17 +73,16 @@ class ServiceTest {
         String resourceId = "/api/consume-insert";
 
         service.send(new InsertRequest(
-                2, 0, TTLType.Seconds, 5, consumerId, resourceId
+                2, 0, TTLType.SECONDS, 5, consumerId, resourceId
         )).get();
 
         FullResponse first = (FullResponse) service.send(new InsertRequest(
-                0, 1, TTLType.Seconds, 5, consumerId, resourceId
+                0, 1, TTLType.SECONDS, 5, consumerId, resourceId
         )).get();
         assertTrue(first.allowed());
 
-        // Segundo consumo
         FullResponse second = (FullResponse) service.send(new InsertRequest(
-                0, 1, TTLType.Seconds, 5, consumerId, resourceId
+                0, 1, TTLType.SECONDS, 5, consumerId, resourceId
         )).get();
         assertTrue(second.allowed());
 
@@ -94,23 +98,21 @@ class ServiceTest {
         String resourceId = "/api/consume-update";
 
         service.send(new InsertRequest(
-                2, 0, TTLType.Seconds, 5, consumerId, resourceId
+                2, 0, TTLType.SECONDS, 5, consumerId, resourceId
         )).get();
 
         SimpleResponse firstUpdate = (SimpleResponse) service.send(new UpdateRequest(
-                AttributeType.Quota, ChangeType.Decrease, 1, consumerId, resourceId
+                AttributeType.QUOTA, ChangeType.DECREASE, 1, consumerId, resourceId
         )).get();
         assertTrue(firstUpdate.success());
 
-        // Decrease 1
         SimpleResponse secondUpdate = (SimpleResponse) service.send(new UpdateRequest(
-                AttributeType.Quota, ChangeType.Decrease, 1, consumerId, resourceId
+                AttributeType.QUOTA, ChangeType.DECREASE, 1, consumerId, resourceId
         )).get();
         assertTrue(secondUpdate.success());
 
-        // Decrease 1 más
         SimpleResponse thirdUpdate = (SimpleResponse) service.send(new UpdateRequest(
-                AttributeType.Quota, ChangeType.Decrease, 1, consumerId, resourceId
+                AttributeType.QUOTA, ChangeType.DECREASE, 1, consumerId, resourceId
         )).get();
         assertTrue(thirdUpdate.success());
 
@@ -126,7 +128,7 @@ class ServiceTest {
         String resourceId = "/api/purge";
 
         service.send(new InsertRequest(
-                1, 0, TTLType.Seconds, 5, consumerId, resourceId
+                1, 0, TTLType.SECONDS, 5, consumerId, resourceId
         )).get();
 
         SimpleResponse purge = (SimpleResponse) service.send(new PurgeRequest(
@@ -146,7 +148,7 @@ class ServiceTest {
         String resourceId = "/api/ttl";
 
         service.send(new InsertRequest(
-                1, 1, TTLType.Seconds, 2, consumerId, resourceId
+                1, 1, TTLType.SECONDS, 2, consumerId, resourceId
         )).get();
 
         FullResponse queryAfterInsert = (FullResponse) service.send(new QueryRequest(
@@ -154,11 +156,14 @@ class ServiceTest {
         )).get();
         assertTrue(queryAfterInsert.quotaRemaining() <= 0);
 
-        Thread.sleep(2500);
-
-        FullResponse queryAfterTTL = (FullResponse) service.send(new QueryRequest(
-                consumerId, resourceId
-        )).get();
-        assertFalse(queryAfterTTL.allowed());
+        await()
+                .atMost(Duration.ofSeconds(5))
+                .pollInterval(Duration.ofMillis(250))
+                .until(() -> {
+                    FullResponse response = (FullResponse) service.send(new QueryRequest(
+                            consumerId, resourceId
+                    )).get();
+                    return !response.allowed();
+                });
     }
 }

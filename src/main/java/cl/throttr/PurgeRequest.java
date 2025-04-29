@@ -40,7 +40,7 @@ public record PurgeRequest(
         );
         buffer.order(ByteOrder.LITTLE_ENDIAN);
 
-        buffer.put((byte) RequestType.Purge.getValue());
+        buffer.put((byte) RequestType.PURGE.getValue());
         buffer.put((byte) consumerIdBytes.length);
         buffer.put((byte) resourceIdBytes.length);
         buffer.put(consumerIdBytes);

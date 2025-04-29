@@ -19,7 +19,7 @@ package cl.throttr;
  * Attribute types
  */
 public enum AttributeType {
-    Quota(0),
+    QUOTA(0),
     TTL(1);
 
     private final int value;

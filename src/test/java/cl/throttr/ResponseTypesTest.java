@@ -37,7 +37,7 @@ class ResponseTypesTest {
 
         assertTrue(response.allowed());
         assertEquals(4L, response.quotaRemaining());
-        assertEquals(TTLType.Milliseconds, response.ttlType());
+        assertEquals(TTLType.MILLISECONDS, response.ttlType());
         assertEquals(10000L, response.ttlRemaining());
     }
 

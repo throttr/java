@@ -27,12 +27,12 @@ class RequestTypesTest {
     @Test
     void testInsertRequestToBytes() {
         InsertRequest request = new InsertRequest(
-                5L, 0L, TTLType.Seconds, 10000L, "user:123", "/api/test"
+                5L, 0L, TTLType.SECONDS, 10000L, "user:123", "/api/test"
         );
         byte[] bytes = request.toBytes();
         assertNotNull(bytes);
         assertTrue(bytes.length > 0);
-        assertEquals((byte) RequestType.Insert.getValue(), bytes[0]);
+        assertEquals((byte) RequestType.INSERT.getValue(), bytes[0]);
     }
 
     @Test
@@ -43,18 +43,18 @@ class RequestTypesTest {
         byte[] bytes = request.toBytes();
         assertNotNull(bytes);
         assertTrue(bytes.length > 0);
-        assertEquals((byte) RequestType.Query.getValue(), bytes[0]);
+        assertEquals((byte) RequestType.QUERY.getValue(), bytes[0]);
     }
 
     @Test
     void testUpdateRequestToBytes() {
         UpdateRequest request = new UpdateRequest(
-                AttributeType.Quota, ChangeType.Decrease, 5L, "user:123", "/api/test"
+                AttributeType.QUOTA, ChangeType.DECREASE, 5L, "user:123", "/api/test"
         );
         byte[] bytes = request.toBytes();
         assertNotNull(bytes);
         assertTrue(bytes.length > 0);
-        assertEquals((byte) RequestType.Update.getValue(), bytes[0]);
+        assertEquals((byte) RequestType.UPDATE.getValue(), bytes[0]);
     }
 
     @Test
@@ -65,6 +65,6 @@ class RequestTypesTest {
         byte[] bytes = request.toBytes();
         assertNotNull(bytes);
         assertTrue(bytes.length > 0);
-        assertEquals((byte) RequestType.Purge.getValue(), bytes[0]);
+        assertEquals((byte) RequestType.PURGE.getValue(), bytes[0]);
     }
 }

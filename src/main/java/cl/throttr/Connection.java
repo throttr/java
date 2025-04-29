@@ -40,24 +40,28 @@ public class Connection implements AutoCloseable {
         int expectedSize;
         boolean expectFullResponse;
 
-        if (request instanceof InsertRequest insert) {
-            buffer = insert.toBytes();
-            expectedSize = 18;
-            expectFullResponse = true;
-        } else if (request instanceof QueryRequest query) {
-            buffer = query.toBytes();
-            expectedSize = 18;
-            expectFullResponse = true;
-        } else if (request instanceof UpdateRequest update) {
-            buffer = update.toBytes();
-            expectedSize = 1;
-            expectFullResponse = false;
-        } else if (request instanceof PurgeRequest purge) {
-            buffer = purge.toBytes();
-            expectedSize = 1;
-            expectFullResponse = false;
-        } else {
-            throw new IllegalArgumentException("Unsupported request type: " + request.getClass());
+        switch (request) {
+            case InsertRequest insert -> {
+                buffer = insert.toBytes();
+                expectedSize = 18;
+                expectFullResponse = true;
+            }
+            case QueryRequest query -> {
+                buffer = query.toBytes();
+                expectedSize = 18;
+                expectFullResponse = true;
+            }
+            case UpdateRequest update -> {
+                buffer = update.toBytes();
+                expectedSize = 1;
+                expectFullResponse = false;
+            }
+            case PurgeRequest purge -> {
+                buffer = purge.toBytes();
+                expectedSize = 1;
+                expectFullResponse = false;
+            }
+            default -> throw new IllegalArgumentException("Unsupported request type: " + request.getClass());
         }
 
         CompletableFuture<Object> future = new CompletableFuture<>();

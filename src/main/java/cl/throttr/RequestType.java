@@ -19,10 +19,10 @@ package cl.throttr;
  * Request types
  */
 public enum RequestType {
-    Insert(0x01),
-    Query(0x02),
-    Update(0x03),
-    Purge(0x04);
+    INSERT(0x01),
+    QUERY(0x02),
+    UPDATE(0x03),
+    PURGE(0x04);
 
     private final int value;
 
