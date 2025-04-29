@@ -32,7 +32,7 @@ Add the dependency to your `pom.xml`:
 <dependency>
     <groupId>cl.throttr</groupId>
     <artifactId>sdk</artifactId>
-    <version>1.0.0</version>
+    <version>2.0.0</version>
 </dependency>
 ```
 
@@ -41,36 +41,76 @@ Make sure to configure your Maven repositories to include GitHub Packages if nee
 ## Basic Usage
 
 ```java
-import cl.throttr.Service;
+package your.source;
 
-import java.net.InetAddress;
 import java.util.concurrent.CompletableFuture;
 
-public class Example {
-    public static void main(String[] args) throws Exception {
-        Service service = new Service("127.0.0.1", 9000, 1);
+import cl.throttr.Service;
+import cl.throttr.InsertRequest;
+import cl.throttr.QueryRequest;
+import cl.throttr.UpdateRequest;
+import cl.throttr.PurgeRequest;
+import cl.throttr.TTLType;
+import cl.throttr.AttributeType;
+import cl.throttr.ChangeType;
+import cl.throttr.FullResponse;
+import cl.throttr.SimpleResponse;
 
-        service.connect();
+public class ExampleUsage {
 
-        Request request = new Request(
-                InetAddress.getByName("127.0.0.1"),
-                37451,
-                "/api/resource",
-                5,
-                5000 // TTL in milliseconds
-        );
+    public static void main(String[] args) {
+        Service service = new Service("127.0.0.1", 9000, 4); // Max connections = 4
 
-        CompletableFuture<Response> future = service.send(request);
-        Response response = future.get(); // Blocking get for simplicity
+        try {
+            // Connect to Throttr
+            service.connect();
 
-        System.out.printf(
-                "Allowed: %s, Remaining: %d, RetryAfter: %dms%n",
-                response.can(),
-                response.availableRequests(),
-                response.ttl()
-        );
+            // Define a consumer and resource
+            String consumerId = "127.0.0.1:1234";
+            String resourceId = "GET /api/resource";
 
-        service.close();
+            // Insert quota
+            CompletableFuture<Object> insertFuture = service.send(new InsertRequest(
+                    5L, 0L, TTLType.Milliseconds, 3000L, consumerId, resourceId
+            ));
+            FullResponse insertResponse = (FullResponse) insertFuture.get();
+
+            System.out.println("Allowed: " + insertResponse.allowed());
+            System.out.println("Remaining: " + insertResponse.quotaRemaining());
+            System.out.println("TTL type: " + insertResponse.ttlType());
+            System.out.println("TTL remaining: " + insertResponse.ttlRemaining());
+
+            // Update the quota
+            CompletableFuture<Object> updateFuture = service.send(new UpdateRequest(
+                    AttributeType.QUOTA, ChangeType.DECREASE, 1L, consumerId, resourceId
+            ));
+            SimpleResponse updateResponse = (SimpleResponse) updateFuture.get();
+            System.out.println("Quota updated successfully: " + updateResponse.success());
+
+            // Query the quota
+            CompletableFuture<Object> queryFuture = service.send(new QueryRequest(
+                    consumerId, resourceId
+            ));
+            FullResponse queryResponse = (FullResponse) queryFuture.get();
+
+            System.out.println("Allowed after update: " + queryResponse.allowed());
+            System.out.println("Remaining after update: " + queryResponse.quotaRemaining());
+            System.out.println("TTL type: " + queryResponse.ttlType());
+            System.out.println("TTL after update: " + queryResponse.ttlRemaining());
+
+            // Optionally, purge the quota
+            CompletableFuture<Object> purgeFuture = service.send(new PurgeRequest(
+                    consumerId, resourceId
+            ));
+            SimpleResponse purgeResponse = (SimpleResponse) purgeFuture.get();
+            System.out.println("Purge success: " + purgeResponse.success());
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            // Disconnect once done
+            service.close();
+        }
     }
 }
 ```
@@ -80,10 +120,8 @@ public class Example {
 ## Technical Notes
 
 - The protocol assumes Little Endian architecture.
-- The server does not respond to malformed requests.
-- IP must be a valid IPv4 or IPv6 address; otherwise, an error is thrown.
 - The internal message queue ensures requests are processed sequentially.
-- Throttr independently manages quotas per IP, port, and URL.
+- The package is defined to works with protocol 2.0.0 or greatest.
 
 ---
 
