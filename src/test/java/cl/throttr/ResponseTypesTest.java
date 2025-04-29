@@ -59,6 +59,12 @@ class ResponseTypesTest {
 
         assertTrue(response.success());
 
+        byte[] simpleResponseDeniedBytes = new byte[]{0x00}; // success = false
+
+        SimpleResponse responseDenied = SimpleResponse.fromBytes(simpleResponseDeniedBytes);
+
+        assertFalse(responseDenied.success());
+
         byte[] invalidBytes = new byte[]{0x01, 0x02}; // inválido: 2 bytes
 
         IllegalArgumentException exception = assertThrows(
