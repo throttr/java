@@ -17,30 +17,35 @@ package cl.throttr;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.charset.StandardCharsets;
 
 /**
- * Response
- *
- * @param can
- * @param availableRequests
- * @param ttl
+ * Purge request
  */
-public record Response(boolean can, int availableRequests, long ttl) {
-
+public record PurgeRequest(
+        String consumerId,
+        String resourceId
+) {
     /**
-     * From bytes
+     * To bytes
      *
-     * @param data Bytes
-     * @return Response
+     * @return byte[]
      */
-    public static Response fromBytes(byte[] data) {
-        var buffer = ByteBuffer.wrap(data);
+    public byte[] toBytes() {
+        byte[] consumerIdBytes = consumerId.getBytes(StandardCharsets.UTF_8);
+        byte[] resourceIdBytes = resourceId.getBytes(StandardCharsets.UTF_8);
+
+        var buffer = ByteBuffer.allocate(
+                1 + 1 + 1 + consumerIdBytes.length + resourceIdBytes.length
+        );
         buffer.order(ByteOrder.LITTLE_ENDIAN);
 
-        boolean can = buffer.get() == 1;
-        int availableRequests = buffer.getInt();
-        long ttl = buffer.getLong();
+        buffer.put((byte) RequestType.PURGE.getValue());
+        buffer.put((byte) consumerIdBytes.length);
+        buffer.put((byte) resourceIdBytes.length);
+        buffer.put(consumerIdBytes);
+        buffer.put(resourceIdBytes);
 
-        return new Response(can, availableRequests, ttl);
+        return buffer.array();
     }
 }

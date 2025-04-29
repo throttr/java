@@ -15,25 +15,22 @@
 
 package cl.throttr;
 
-import org.junit.jupiter.api.Test;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
-class ResponseTest {
-
-    @Test
-    void fromBytesParsesCorrectly() {
-        byte[] responseBytes = new byte[]{
-                0x01,
-                0x04, 0x00, 0x00, 0x00,
-                0x10, 0x27, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-        };
-
-        var response = Response.fromBytes(responseBytes);
-
-        assertTrue(response.can());
-        assertEquals(4, response.availableRequests());
-        assertEquals(10000, response.ttl());
+/**
+ * Simple response
+ */
+public record SimpleResponse(
+        boolean success
+) {
+    /**
+     * Parse from bytes
+     *
+     * @param data Byte array
+     * @return SimpleResponse
+     */
+    public static SimpleResponse fromBytes(byte[] data) {
+        if (data.length != 1) {
+            throw new IllegalArgumentException("Invalid SimpleResponse length: " + data.length);
+        }
+        return new SimpleResponse(data[0] == 1);
     }
 }

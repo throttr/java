@@ -46,16 +46,16 @@ public class Service implements AutoCloseable {
     private final int port;
 
     /**
-     * Max connections
+     * Maximum connections
      */
     private final int maxConnections;
 
     /**
      * Constructor
      *
-     * @param host Host
-     * @param port Port
-     * @param maxConnections Max Connections
+     * @param host The Throttr remote address
+     * @param port The Throttr remote port
+     * @param maxConnections Number of pooled connections
      */
     public Service(String host, int port, int maxConnections) {
         if (maxConnections <= 0) {
@@ -69,7 +69,7 @@ public class Service implements AutoCloseable {
     /**
      * Connect
      *
-     * @throws IOException If any connection fails
+     * @throws IOException Sockets can fail
      */
     public void connect() throws IOException {
         for (int i = 0; i < maxConnections; i++) {
@@ -81,12 +81,12 @@ public class Service implements AutoCloseable {
     /**
      * Send
      *
-     * @param request Request
-     * @return CompletableFuture<Response>
+     * @param request Requests
+     * @return CompletableFuture<Object>
      */
-    public CompletableFuture<Response> send(Request request) {
+    public CompletableFuture<Object> send(Object request) {
         if (connections.isEmpty()) {
-            CompletableFuture<Response> future = new CompletableFuture<>();
+            CompletableFuture<Object> future = new CompletableFuture<>();
             future.completeExceptionally(new IllegalStateException("No available connections."));
             return future;
         }
@@ -97,7 +97,7 @@ public class Service implements AutoCloseable {
     }
 
     /**
-     * Disconnect
+     * Close
      */
     @Override
     public void close() {

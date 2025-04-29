@@ -21,6 +21,13 @@ import java.lang.reflect.Method;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.io.IOException;
+
+class FakeRequest {}
+
+/**
+ * ConnectionTest
+ */
 class ConnectionTest {
 
     @Test
@@ -38,6 +45,21 @@ class ConnectionTest {
             }
         });
 
+        conn.close();
+    }
+
+    @Test
+    void shouldThrowExceptionForUnsupportedRequest() throws IOException {
+        Connection conn = new Connection("127.0.0.1", 9000);
+
+        FakeRequest dummy = new FakeRequest();
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> conn.send(dummy)
+        );
+
+        assertTrue(exception.getMessage().contains("Unsupported request type"));
         conn.close();
     }
 }
