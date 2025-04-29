@@ -49,4 +49,28 @@ class ResponseTypesTest {
 
         assertTrue(response.success());
     }
+
+    @Test
+    void shouldThrowExceptionSimpleResponseForInvalidLength() {
+        byte[] invalidBytes = new byte[]{0x01, 0x02}; // inválido: 2 bytes
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> SimpleResponse.fromBytes(invalidBytes)
+        );
+
+        assertTrue(exception.getMessage().contains("Invalid SimpleResponse length"));
+    }
+
+    @Test
+    void shouldThrowExceptionFullResponseForInvalidLength() {
+        byte[] invalidBytes = new byte[]{0x01, 0x02}; // inválido: 2 bytes
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> FullResponse.fromBytes(invalidBytes)
+        );
+
+        assertTrue(exception.getMessage().contains("Invalid FullResponse length"));
+    }
 }

@@ -24,6 +24,7 @@ import static org.awaitility.Awaitility.await;
 import java.time.Duration;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -165,5 +166,84 @@ class ServiceTest {
                     )).get();
                     return !response.allowed();
                 });
+    }
+
+    @Test
+    void shouldAllTheFlowWorksAsExpected() throws Exception {
+        String consumerId = "user:purge";
+        String resourceId = "/api/purge";
+
+        FullResponse insertResponse = (FullResponse) service.send(new InsertRequest(
+                10, 0, TTLType.SECONDS, 30, consumerId, resourceId
+        )).get();
+        assertTrue(insertResponse.allowed());
+        assertEquals(10L, insertResponse.quotaRemaining());
+        assertEquals(TTLType.SECONDS, insertResponse.ttlType());
+
+        FullResponse queryResponse1 = (FullResponse) service.send(new QueryRequest(
+                consumerId, resourceId
+        )).get();
+        assertTrue(queryResponse1.allowed());
+        assertEquals(10L, queryResponse1.quotaRemaining());
+
+        SimpleResponse updateResponse = (SimpleResponse) service.send(new UpdateRequest(
+                AttributeType.QUOTA, ChangeType.DECREASE, 5L, consumerId, resourceId
+        )).get();
+        assertTrue(updateResponse.success());
+
+        FullResponse queryResponse2 = (FullResponse) service.send(new QueryRequest(
+                consumerId, resourceId
+        )).get();
+        assertTrue(queryResponse2.allowed());
+        assertEquals(5L, queryResponse2.quotaRemaining());
+
+        SimpleResponse purgeResponse = (SimpleResponse) service.send(new PurgeRequest(
+                consumerId, resourceId
+        )).get();
+        assertTrue(purgeResponse.success());
+
+        FullResponse queryResponse3 = (FullResponse) service.send(new QueryRequest(
+                consumerId, resourceId
+        )).get();
+        assertFalse(queryResponse3.allowed());
+
+        service.close();
+    }
+
+    @Test
+    void shouldThrowExceptionWhenMaxConnectionsIsZero() {
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> new Service("127.0.0.1", 9000, 0)
+        );
+
+        assertEquals("maxConnections must be greater than 0.", exception.getMessage());
+    }
+
+    @Test
+    void shouldThrowExceptionWhenMaxConnectionsIsNegative() {
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> new Service("127.0.0.1", 9000, -5)
+        );
+
+        assertEquals("maxConnections must be greater than 0.", exception.getMessage());
+    }
+
+    @Test
+    void shouldFailWhenNoConnectionsAvailable() {
+        Service local = new Service("127.0.0.1", 9000, 1);
+
+        CompletableFuture<Object> future = local.send(new InsertRequest(
+                5, 0, TTLType.SECONDS, 5, "user:no-connection", "/api/test"
+        ));
+
+        ExecutionException exception = assertThrows(
+                ExecutionException.class,
+                future::get
+        );
+
+        assertTrue(exception.getCause() instanceof IllegalStateException);
+        assertEquals("No available connections.", exception.getCause().getMessage());
     }
 }
