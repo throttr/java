@@ -39,6 +39,16 @@ class ResponseTypesTest {
         assertEquals(4L, response.quotaRemaining());
         assertEquals(TTLType.MILLISECONDS, response.ttlType());
         assertEquals(10000L, response.ttlRemaining());
+
+
+        byte[] invalidBytes = new byte[]{0x01, 0x02};
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> FullResponse.fromBytes(invalidBytes)
+        );
+
+        assertTrue(exception.getMessage().contains("Invalid FullResponse length"));
     }
 
     @Test
@@ -48,10 +58,7 @@ class ResponseTypesTest {
         SimpleResponse response = SimpleResponse.fromBytes(simpleResponseBytes);
 
         assertTrue(response.success());
-    }
 
-    @Test
-    void shouldThrowExceptionSimpleResponseForInvalidLength() {
         byte[] invalidBytes = new byte[]{0x01, 0x02}; // inválido: 2 bytes
 
         IllegalArgumentException exception = assertThrows(
@@ -60,17 +67,5 @@ class ResponseTypesTest {
         );
 
         assertTrue(exception.getMessage().contains("Invalid SimpleResponse length"));
-    }
-
-    @Test
-    void shouldThrowExceptionFullResponseForInvalidLength() {
-        byte[] invalidBytes = new byte[]{0x01, 0x02}; // inválido: 2 bytes
-
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
-                () -> FullResponse.fromBytes(invalidBytes)
-        );
-
-        assertTrue(exception.getMessage().contains("Invalid FullResponse length"));
     }
 }
