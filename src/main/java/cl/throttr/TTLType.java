@@ -15,25 +15,21 @@
 
 package cl.throttr;
 
-import org.junit.jupiter.api.Test;
+/**
+ * TTL types
+ */
+public enum TTLType {
+    Nanoseconds(0),
+    Milliseconds(1),
+    Seconds(2);
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+    private final int value;
 
-class ResponseTest {
+    TTLType(int value) {
+        this.value = value;
+    }
 
-    @Test
-    void fromBytesParsesCorrectly() {
-        byte[] responseBytes = new byte[]{
-                0x01,
-                0x04, 0x00, 0x00, 0x00,
-                0x10, 0x27, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-        };
-
-        var response = Response.fromBytes(responseBytes);
-
-        assertTrue(response.can());
-        assertEquals(4, response.availableRequests());
-        assertEquals(10000, response.ttl());
+    public int getValue() {
+        return value;
     }
 }

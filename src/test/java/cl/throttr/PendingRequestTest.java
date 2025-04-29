@@ -15,7 +15,6 @@
 
 package cl.throttr;
 
-
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.CompletableFuture;
@@ -23,55 +22,22 @@ import java.util.concurrent.CompletableFuture;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * ServiceTest
+ * PendingRequestTest
  */
 class PendingRequestTest {
 
     @Test
-    void testBufferAndFutureAccessors() {
+    void testAccessors() {
         byte[] buffer = {0x01, 0x02, 0x03};
-        CompletableFuture<Response> future = new CompletableFuture<>();
+        CompletableFuture<Object> future = new CompletableFuture<>();
+        int expectedSize = 3;
+        boolean expectFullResponse = true;
 
-        var pendingRequest = new PendingRequest(buffer, future);
+        PendingRequest pendingRequest = new PendingRequest(buffer, future, expectedSize, expectFullResponse);
 
-        assertArrayEquals(buffer, pendingRequest.buffer());
-        assertEquals(future, pendingRequest.future());
-    }
-
-
-    @Test
-    void testEqualsAndHashCode() {
-        byte[] buffer1 = {0x01, 0x02, 0x03};
-        byte[] buffer2 = {0x01, 0x02, 0x03};
-        CompletableFuture<Response> future = new CompletableFuture<>();
-
-        PendingRequest pending1 = new PendingRequest(buffer1, future);
-        PendingRequest pending2 = new PendingRequest(buffer2, future);
-
-        assertEquals(pending1, pending2);
-        assertEquals(pending1.hashCode(), pending2.hashCode());
-    }
-
-    @Test
-    void testNotEqualsDifferentBuffer() {
-        byte[] buffer1 = {0x01, 0x02, 0x03};
-        byte[] buffer2 = {0x04, 0x05, 0x06};
-        CompletableFuture<Response> future = new CompletableFuture<>();
-
-        PendingRequest pending1 = new PendingRequest(buffer1, future);
-        PendingRequest pending2 = new PendingRequest(buffer2, future);
-
-        assertNotEquals(pending1, pending2);
-    }
-
-    @Test
-    void testToStringIsNotNull() {
-        byte[] buffer = {0x01, 0x02, 0x03};
-        CompletableFuture<Response> future = new CompletableFuture<>();
-
-        PendingRequest pending = new PendingRequest(buffer, future);
-
-        assertNotNull(pending.toString());
-        assertTrue(pending.toString().contains("buffer"));
+        assertArrayEquals(buffer, pendingRequest.getBuffer());
+        assertEquals(future, pendingRequest.getFuture());
+        assertEquals(expectedSize, pendingRequest.getExpectedSize());
+        assertTrue(pendingRequest.isExpectFullResponse());
     }
 }

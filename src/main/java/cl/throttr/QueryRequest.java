@@ -17,36 +17,35 @@ package cl.throttr;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.charset.StandardCharsets;
 
 /**
- * Full response
+ * Query request
  */
-public record FullResponse(
-        boolean allowed,
-        long quotaRemaining,
-        TTLType ttlType,
-        long ttlRemaining
+public record QueryRequest(
+        String consumerId,
+        String resourceId
 ) {
     /**
-     * Parse from bytes
+     * To bytes
      *
-     * @param data Byte array (must be 18 bytes)
-     * @return FullResponse
+     * @return byte[]
      */
-    public static FullResponse fromBytes(byte[] data) {
-        if (data.length != 18) {
-            throw new IllegalArgumentException("Invalid FullResponse length: " + data.length);
-        }
+    public byte[] toBytes() {
+        byte[] consumerIdBytes = consumerId.getBytes(StandardCharsets.UTF_8);
+        byte[] resourceIdBytes = resourceId.getBytes(StandardCharsets.UTF_8);
 
-        var buffer = ByteBuffer.wrap(data);
+        var buffer = ByteBuffer.allocate(
+                1 + 1 + 1 + consumerIdBytes.length + resourceIdBytes.length
+        );
         buffer.order(ByteOrder.LITTLE_ENDIAN);
 
-        boolean allowed = buffer.get() == 1;
-        long quotaRemaining = buffer.getLong();
-        byte ttlTypeRaw = buffer.get();
-        TTLType ttlType = TTLType.values()[ttlTypeRaw];
-        long ttlRemaining = buffer.getLong();
+        buffer.put((byte) RequestType.Query.getValue());
+        buffer.put((byte) consumerIdBytes.length);
+        buffer.put((byte) resourceIdBytes.length);
+        buffer.put(consumerIdBytes);
+        buffer.put(resourceIdBytes);
 
-        return new FullResponse(allowed, quotaRemaining, ttlType, ttlRemaining);
+        return buffer.array();
     }
 }

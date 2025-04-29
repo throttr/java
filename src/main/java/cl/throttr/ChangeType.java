@@ -16,21 +16,20 @@
 package cl.throttr;
 
 /**
- * Simple response
+ * Attribute types
  */
-public record SimpleResponse(
-        boolean success
-) {
-    /**
-     * Parse from bytes
-     *
-     * @param data Byte array
-     * @return SimpleResponse
-     */
-    public static SimpleResponse fromBytes(byte[] data) {
-        if (data.length != 1) {
-            throw new IllegalArgumentException("Invalid SimpleResponse length: " + data.length);
-        }
-        return new SimpleResponse(data[0] == 1);
+public enum ChangeType {
+    Patch(0),
+    Increase(1),
+    Decrease(2);
+
+    private final int value;
+
+    ChangeType(int value) {
+        this.value = value;
+    }
+
+    public int getValue() {
+        return value;
     }
 }

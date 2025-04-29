@@ -19,11 +19,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -45,107 +41,124 @@ class ServiceTest {
     }
 
     @Test
-    void testSendSingleRequest() throws Exception {
-        Request request = new Request(
-                InetAddress.getByName("127.0.0.1"),
-                8080,
-                "/test",
-                5,
-                10000
-        );
+    void shouldInsertAndQuerySuccessfully() throws Exception {
+        String consumerId = "user:123";
+        String resourceId = "/api/test";
 
-        CompletableFuture<Response> future = service.send(request);
-        Response response = future.get(); // Espera respuesta
+        CompletableFuture<Object> insertFuture = service.send(new InsertRequest(
+                5, 0, TTLType.Seconds, 5, consumerId, resourceId
+        ));
+        FullResponse insert = (FullResponse) insertFuture.get();
 
-        assertNotNull(response);
-        assertTrue(response.can());
-        assertTrue(response.availableRequests() >= 0);
-        assertTrue(response.ttl() >= 0);
+        assertTrue(insert.allowed());
+
+        CompletableFuture<Object> queryFuture = service.send(new QueryRequest(
+                consumerId, resourceId
+        ));
+        FullResponse query = (FullResponse) queryFuture.get();
+
+        assertTrue(query.allowed());
+        assertTrue(query.quotaRemaining() >= 0);
+        assertTrue(query.ttlRemaining() >= 0);
     }
 
     @Test
-    void testRoundRobinBehavior() throws Exception {
-        Request request1 = new Request(
-                InetAddress.getByName("127.0.0.1"),
-                8080,
-                "/one",
-                5,
-                10000
-        );
+    void shouldConsumeQuotaViaInsertUsageAndDenyAfterExhausted() throws Exception {
+        String consumerId = "user:consume-insert";
+        String resourceId = "/api/consume-insert";
 
-        Request request2 = new Request(
-                InetAddress.getByName("127.0.0.1"),
-                8080,
-                "/two",
-                5,
-                10000
-        );
+        service.send(new InsertRequest(
+                2, 0, TTLType.Seconds, 5, consumerId, resourceId
+        )).get();
 
-        CompletableFuture<Response> future1 = service.send(request1);
-        CompletableFuture<Response> future2 = service.send(request2);
+        FullResponse first = (FullResponse) service.send(new InsertRequest(
+                0, 1, TTLType.Seconds, 5, consumerId, resourceId
+        )).get();
+        assertTrue(first.allowed());
 
-        Response response1 = future1.get();
-        Response response2 = future2.get();
+        // Segundo consumo
+        FullResponse second = (FullResponse) service.send(new InsertRequest(
+                0, 1, TTLType.Seconds, 5, consumerId, resourceId
+        )).get();
+        assertTrue(second.allowed());
 
-        assertNotNull(response1);
-        assertNotNull(response2);
-
-        assertTrue(response1.can());
-        assertTrue(response2.can());
+        FullResponse query = (FullResponse) service.send(new QueryRequest(
+                consumerId, resourceId
+        )).get();
+        assertTrue(query.quotaRemaining() <= 0);
     }
 
     @Test
-    void testSendWithoutConnections() throws UnknownHostException {
-        Service emptyService = new Service("127.0.0.1", 9000, 1);
-        Request request = new Request(
-                InetAddress.getByName("127.0.0.1"),
-                8080,
-                "/fail",
-                5,
-                10000
-        );
+    void shouldConsumeQuotaViaUpdateDecreaseAndReachZero() throws Exception {
+        String consumerId = "user:consume-update";
+        String resourceId = "/api/consume-update";
 
-        CompletableFuture<Response> future = emptyService.send(request);
+        service.send(new InsertRequest(
+                2, 0, TTLType.Seconds, 5, consumerId, resourceId
+        )).get();
 
-        assertThrows(ExecutionException.class, future::get);
+        SimpleResponse firstUpdate = (SimpleResponse) service.send(new UpdateRequest(
+                AttributeType.Quota, ChangeType.Decrease, 1, consumerId, resourceId
+        )).get();
+        assertTrue(firstUpdate.success());
+
+        // Decrease 1
+        SimpleResponse secondUpdate = (SimpleResponse) service.send(new UpdateRequest(
+                AttributeType.Quota, ChangeType.Decrease, 1, consumerId, resourceId
+        )).get();
+        assertTrue(secondUpdate.success());
+
+        // Decrease 1 más
+        SimpleResponse thirdUpdate = (SimpleResponse) service.send(new UpdateRequest(
+                AttributeType.Quota, ChangeType.Decrease, 1, consumerId, resourceId
+        )).get();
+        assertTrue(thirdUpdate.success());
+
+        FullResponse query = (FullResponse) service.send(new QueryRequest(
+                consumerId, resourceId
+        )).get();
+        assertTrue(query.quotaRemaining() <= 0);
     }
 
-
     @Test
-    void testServiceConstructorThrowsExceptionOnInvalidMaxConnections() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            new Service("127.0.0.1", 9000, 0);
-        });
+    void shouldPurgeAndFailToQueryAfterwards() throws Exception {
+        String consumerId = "user:purge";
+        String resourceId = "/api/purge";
 
-        assertThrows(IllegalArgumentException.class, () -> {
-            new Service("127.0.0.1", 9000, -5);
-        });
+        service.send(new InsertRequest(
+                1, 0, TTLType.Seconds, 5, consumerId, resourceId
+        )).get();
+
+        SimpleResponse purge = (SimpleResponse) service.send(new PurgeRequest(
+                consumerId, resourceId
+        )).get();
+        assertTrue(purge.success());
+
+        FullResponse query = (FullResponse) service.send(new QueryRequest(
+                consumerId, resourceId
+        )).get();
+        assertFalse(query.allowed());
     }
 
-
     @Test
-    void testExhaustMaxRequests() throws Exception {
-        Request request = new Request(
-                InetAddress.getByName("127.0.0.1"),
-                9000,
-                "/throttr",
-                5,
-                1000
-        );
+    void shouldResetQuotaAfterTTLExpiration() throws Exception {
+        String consumerId = "user:ttl";
+        String resourceId = "/api/ttl";
 
-        Response lastResponse = null;
+        service.send(new InsertRequest(
+                1, 1, TTLType.Seconds, 2, consumerId, resourceId
+        )).get();
 
-        for (int i = 0; i < 6; i++) {
-            CompletableFuture<Response> future = service.send(request);
-            Response response = future.get();
+        FullResponse queryAfterInsert = (FullResponse) service.send(new QueryRequest(
+                consumerId, resourceId
+        )).get();
+        assertTrue(queryAfterInsert.quotaRemaining() <= 0);
 
-            System.out.printf("Request #%d: allowed=%s, remaining=%d%n", i + 1, response.can(), response.availableRequests());
+        Thread.sleep(2500);
 
-            lastResponse = response;
-        }
-
-        assertNotNull(lastResponse);
-        assertFalse(lastResponse.can());
-        assertEquals(0, lastResponse.availableRequests());
+        FullResponse queryAfterTTL = (FullResponse) service.send(new QueryRequest(
+                consumerId, resourceId
+        )).get();
+        assertFalse(queryAfterTTL.allowed());
     }
 }

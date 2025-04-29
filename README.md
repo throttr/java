@@ -42,8 +42,6 @@ Make sure to configure your Maven repositories to include GitHub Packages if nee
 
 ```java
 import cl.throttr.Service;
-import cl.throttr.Request;
-import cl.throttr.Response;
 
 import java.net.InetAddress;
 import java.util.concurrent.CompletableFuture;
@@ -55,21 +53,21 @@ public class Example {
         service.connect();
 
         Request request = new Request(
-            InetAddress.getByName("127.0.0.1"),
-            37451,
-            "/api/resource",
-            5,
-            5000 // TTL in milliseconds
+                InetAddress.getByName("127.0.0.1"),
+                37451,
+                "/api/resource",
+                5,
+                5000 // TTL in milliseconds
         );
 
         CompletableFuture<Response> future = service.send(request);
         Response response = future.get(); // Blocking get for simplicity
 
         System.out.printf(
-            "Allowed: %s, Remaining: %d, RetryAfter: %dms%n",
-            response.can(),
-            response.availableRequests(),
-            response.ttl()
+                "Allowed: %s, Remaining: %d, RetryAfter: %dms%n",
+                response.can(),
+                response.availableRequests(),
+                response.ttl()
         );
 
         service.close();

@@ -16,21 +16,21 @@
 package cl.throttr;
 
 /**
- * Simple response
+ * Request types
  */
-public record SimpleResponse(
-        boolean success
-) {
-    /**
-     * Parse from bytes
-     *
-     * @param data Byte array
-     * @return SimpleResponse
-     */
-    public static SimpleResponse fromBytes(byte[] data) {
-        if (data.length != 1) {
-            throw new IllegalArgumentException("Invalid SimpleResponse length: " + data.length);
-        }
-        return new SimpleResponse(data[0] == 1);
+public enum RequestType {
+    Insert(0x01),
+    Query(0x02),
+    Update(0x03),
+    Purge(0x04);
+
+    private final int value;
+
+    RequestType(int value) {
+        this.value = value;
+    }
+
+    public int getValue() {
+        return value;
     }
 }

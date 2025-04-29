@@ -19,64 +19,55 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
-import java.util.Queue;
 import java.util.LinkedList;
+import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Represents a connection to the Throttr server.
- * Handles sending requests and receiving responses.
+ * Connection
  */
 public class Connection implements AutoCloseable {
-    /**
-     * The socket for communication with the server
-     */
     private final Socket socket;
-
-    /**
-     * Queue of pending requests
-     */
     private final Queue<PendingRequest> queue = new LinkedList<>();
-
-    /**
-     * Indicates if the connection is currently processing a request
-     */
     private boolean busy = false;
 
-    /**
-     * Constructor
-     *
-     * @param host The remote server host
-     * @param port The port for the connection
-     * @throws IOException If an error occurs while creating the socket
-     * @throws IllegalArgumentException If the port is out of range (0-65535)
-     */
-    public Connection(String host, int port) throws IOException, IllegalArgumentException {
+    public Connection(String host, int port) throws IOException {
         this.socket = new Socket(host, port);
     }
 
-    /**
-     * Sends a request to the server and returns a CompletableFuture of the response.
-     *
-     * @param request The request to be sent
-     * @return CompletableFuture<Response> The future containing the response
-     */
-    public CompletableFuture<Response> send(Request request) {
-        byte[] buffer = request.toBytes();
-        CompletableFuture<Response> future = new CompletableFuture<>();
+    public CompletableFuture<Object> send(Object request) {
+        byte[] buffer;
+        int expectedSize;
+        boolean expectFullResponse;
 
-        synchronized (queue) {
-            queue.add(new PendingRequest(buffer, future));
-            processQueue();
+        if (request instanceof InsertRequest insert) {
+            buffer = insert.toBytes();
+            expectedSize = 18;
+            expectFullResponse = true;
+        } else if (request instanceof QueryRequest query) {
+            buffer = query.toBytes();
+            expectedSize = 18;
+            expectFullResponse = true;
+        } else if (request instanceof UpdateRequest update) {
+            buffer = update.toBytes();
+            expectedSize = 1;
+            expectFullResponse = false;
+        } else if (request instanceof PurgeRequest purge) {
+            buffer = purge.toBytes();
+            expectedSize = 1;
+            expectFullResponse = false;
+        } else {
+            throw new IllegalArgumentException("Unsupported request type: " + request.getClass());
         }
 
+        CompletableFuture<Object> future = new CompletableFuture<>();
+        synchronized (queue) {
+            queue.add(new PendingRequest(buffer, future, expectedSize, expectFullResponse));
+            processQueue();
+        }
         return future;
     }
 
-    /**
-     * Processes the queue of pending requests.
-     * If the connection is not busy, it sends the next request.
-     */
     private void processQueue() {
         synchronized (queue) {
             if (busy || queue.isEmpty()) {
@@ -84,31 +75,35 @@ public class Connection implements AutoCloseable {
             }
 
             PendingRequest pending = queue.poll();
-
             busy = true;
 
             try {
                 OutputStream out = socket.getOutputStream();
-                out.write(pending.buffer());
+                out.write(pending.getBuffer());
                 out.flush();
 
                 InputStream in = socket.getInputStream();
-                byte[] responseBytes = new byte[13];
+                byte[] responseBytes = new byte[pending.getExpectedSize()];
                 int totalRead = 0;
 
-                // Read the response in chunks
-                while (totalRead < 13) {
-                    int read = in.read(responseBytes, totalRead, 13 - totalRead);
+                while (totalRead < pending.getExpectedSize()) {
+                    int read = in.read(responseBytes, totalRead, pending.getExpectedSize() - totalRead);
                     if (read == -1) {
                         throw new IOException("Connection closed before full response received");
                     }
                     totalRead += read;
                 }
 
-                Response response = Response.fromBytes(responseBytes);
-                pending.future().complete(response);
+                Object response;
+                if (pending.isExpectFullResponse()) {
+                    response = FullResponse.fromBytes(responseBytes);
+                } else {
+                    response = SimpleResponse.fromBytes(responseBytes);
+                }
+
+                pending.getFuture().complete(response);
             } catch (IOException e) {
-                pending.future().completeExceptionally(e);
+                pending.getFuture().completeExceptionally(e);
             } finally {
                 busy = false;
                 processQueue();
@@ -116,11 +111,6 @@ public class Connection implements AutoCloseable {
         }
     }
 
-    /**
-     * Closes the connection, releasing resources.
-     *
-     * @throws IOException If an I/O error occurs when closing the socket
-     */
     @Override
     public void close() throws IOException {
         socket.close();
