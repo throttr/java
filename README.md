@@ -1,4 +1,4 @@
-# Throttr Java SDK
+# Throttr SDK for Java
 
 <p align="center">
 <a href="https://github.com/throttr/java/actions/workflows/build.yml"><img src="https://github.com/throttr/throttr/actions/workflows/build.yml/badge.svg" alt="Build"></a>
@@ -24,7 +24,7 @@ Java client for communicating with a Throttr server over TCP.
 
 The SDK enables sending traffic control requests efficiently, without HTTP, respecting the server's native binary protocol.
 
-## Installation
+## 🛠️ Installation
 
 Add the dependency to your `pom.xml`:
 
