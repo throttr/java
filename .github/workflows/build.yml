@@ -15,11 +15,6 @@ jobs:
         image: ghcr.io/throttr/throttr:2.1.0-release
         ports:
           - 9000:9000
-        options: >-
-          --health-cmd "bash -c 'echo > /dev/tcp/localhost/9000'" 
-          --health-interval 5s
-          --health-timeout 3s
-          --health-retries 5
 
     steps:
       - name: Checkout code
@@ -33,6 +28,15 @@ jobs:
           server-id: github
           server-username: GITHUB_ACTOR
           server-password: GITHUB_TOKEN
+
+      - name: Wait for throttr
+        run: |
+          for i in {1..10}; do
+            nc -z localhost 9000 && echo "✅ throttr running ... " && break
+            echo "⏳ Try $i: waiting 1s..."
+            sleep 1
+          done
+          nc -z localhost 9000 || (echo "❌ throttr isn't running on port 9000" && exit 1)
 
       - name: Build and test
         if: ${{ github.ref_type != 'tag' }}
