@@ -42,4 +42,12 @@ public final class Binary {
             case UINT64 -> buffer.getLong();
         };
     }
+
+    public static String toHex(byte[] data) {
+        StringBuilder sb = new StringBuilder();
+        for (byte b : data) {
+            sb.append(String.format("%02X ", b));
+        }
+        return sb.toString().trim();
+    }
 }

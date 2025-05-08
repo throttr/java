@@ -19,6 +19,7 @@ import cl.throttr.enums.ValueSize;
 import cl.throttr.requests.*;
 import cl.throttr.responses.FullResponse;
 import cl.throttr.responses.SimpleResponse;
+import cl.throttr.utils.Binary;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -103,6 +104,8 @@ public class Connection implements AutoCloseable {
             OutputStream out = socket.getOutputStream();
             InputStream in = socket.getInputStream();
 
+            System.out.println("SEND  → " + Binary.toHex(pending.getBuffer()));
+
             out.write(pending.getBuffer());
             out.flush();
 
@@ -141,6 +144,9 @@ public class Connection implements AutoCloseable {
             }
 
             byte[] finalBytes = fullBuffer.toByteArray();
+            
+            System.out.println("RECV  ← " + Binary.toHex(finalBytes));
+
             Object response = pending.isExpectFullResponse()
                     ? (finalBytes.length == 1 && finalBytes[0] == 0x00
                     ? new FullResponse(false, 0, null, 0)
