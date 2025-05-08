@@ -48,11 +48,15 @@ public class Connection implements AutoCloseable {
     private volatile boolean closed = false;
     private final Object lock = new Object();
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private OutputStream out;
+    private InputStream in;
 
     public Connection(String host, int port, ValueSize size) throws IOException {
         this.socket = new Socket(host, port);
         this.socket.setTcpNoDelay(true);
         this.socket.setSoTimeout(5000);
+        this.out = socket.getOutputStream();
+        this.in = socket.getInputStream();
         this.size = size;
 
         try {
@@ -96,77 +100,69 @@ public class Connection implements AutoCloseable {
         }
 
         CompletableFuture<Object> future = new CompletableFuture<>();
-
         synchronized (queue) {
             queue.add(new PendingRequest(buffer, future, expectFullResponse, requestType));
-            if (!busy && !executor.isShutdown()) {
+            if (!busy) {
                 busy = true;
                 executor.submit(this::processQueue);
             }
         }
-
         return future;
     }
 
     private void processQueue() {
-        synchronized (lock) {
-            while (!shouldStop) {
-                PendingRequest pending;
+        while (true) {
+            PendingRequest pending;
 
-                synchronized (queue) {
-                    if (queue.isEmpty()) {
-                        busy = false;
-                        return;
+            synchronized (queue) {
+                if (queue.isEmpty()) {
+                    busy = false;
+                    return;
+                }
+                pending = queue.poll();
+            }
+
+            try {
+                System.out.println("SEND  → [" + pending.getRequestType() + "] " + Binary.toHex(pending.getBuffer()));
+
+                out.write(pending.getBuffer());
+                out.flush();
+
+                Object response;
+
+                byte[] head = in.readNBytes(1);
+
+                if (pending.getRequestType() == RequestType.QUERY) {
+                    if (head[0] == 0x01) {
+                        byte[] tail = in.readNBytes(size.getValue() * 2 + 1);
+                        byte[] merged = new byte[head.length + tail.length];
+                        System.arraycopy(head, 0, merged, 0, head.length);
+                        System.arraycopy(tail, 0, merged, head.length, tail.length);
+
+                        System.out.println("RCV QUERY 0x01  → [" + pending.getRequestType() + "] " + Binary.toHex(merged));
+
+                        response = FullResponse.fromBytes(merged, size);
+                    } else {
+                        System.out.println("RCV QUERY 0x00  → [" + pending.getRequestType() + "] " + Binary.toHex(head));
+
+                        response = new SimpleResponse(false);
                     }
-                    pending = queue.poll();
+                } else {
+                    System.out.println("RCV OTHERS  → [" + pending.getRequestType() + "] " + Binary.toHex(head));
+                    response = new SimpleResponse(head[0] == 0x01);
                 }
 
-                try {
-                    OutputStream out = socket.getOutputStream();
-                    InputStream in = socket.getInputStream();
-                    BufferedMessageReader reader = new BufferedMessageReader(in);
+                pending.getFuture().complete(response);
+            } catch (IOException e) {
+                System.out.println("ERROR  ← [" + e.getMessage() + "]");
+                pending.getFuture().completeExceptionally(e);
 
-                    System.out.println("SEND  → [" + pending.getRequestType() + "] " + Binary.toHex(pending.getBuffer()));
-
-                    out.write(pending.getBuffer());
-                    out.flush();
-
-                    byte[] fullBytes;
-                    Object response;
-
-                    if (pending.getRequestType() == RequestType.QUERY) {
-                        byte[] head = reader.readFully(1);
-                        if (head[0] == 0x01) {
-                            int tailSize = size.getValue() * 2 + 1;
-                            byte[] tail = reader.readFully(tailSize);
-                            fullBytes = new byte[1 + tail.length];
-                            fullBytes[0] = head[0];
-                            System.arraycopy(tail, 0, fullBytes, 1, tail.length);
-                            response = FullResponse.fromBytes(fullBytes, size);
-                        } else {
-                            fullBytes = head;
-                            response = new SimpleResponse(false);
-                        }
-                    } else {
-                        fullBytes = reader.readFully(1);
-                        response = new SimpleResponse(fullBytes[0] == 1);
+                synchronized (queue) {
+                    while (!queue.isEmpty()) {
+                        PendingRequest next = queue.poll();
+                        next.getFuture().completeExceptionally(new IOException("Connection aborted due to previous failure"));
                     }
-
-                    System.out.println("RECV  ← [" + pending.getRequestType() + "] " + Binary.toHex(fullBytes));
-                    pending.getFuture().complete(response);
-                } catch (IOException e) {
-                    System.out.println("ERROR  ← [" + e.getMessage() + "]");
-                    pending.getFuture().completeExceptionally(e);
-
-                    synchronized (queue) {
-                        while (!queue.isEmpty()) {
-                            PendingRequest next = queue.poll();
-                            next.getFuture().completeExceptionally(new IOException("Connection aborted due to previous failure"));
-                        }
-                        busy = false;
-                    }
-
-                    break; // rompe el loop si falla
+                    busy = false;
                 }
             }
         }
@@ -181,7 +177,6 @@ public class Connection implements AutoCloseable {
                 executor.shutdownNow();
             }
         } catch (InterruptedException ignored) {}
-
         socket.close();
         closed = true;
     }
