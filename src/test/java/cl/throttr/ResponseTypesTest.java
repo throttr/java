@@ -15,11 +15,7 @@
 
 package cl.throttr;
 
-import cl.throttr.enums.TTLType;
-import cl.throttr.enums.ValueSize;
-import cl.throttr.responses.FullResponse;
 import cl.throttr.responses.SimpleResponse;
-import cl.throttr.utils.Testing;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;

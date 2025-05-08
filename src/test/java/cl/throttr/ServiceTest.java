@@ -52,7 +52,6 @@ class ServiceTest {
         ValueSize size = Testing.getValueSizeFromEnv();
         service = new Service("127.0.0.1", 9000, size,1);
         service.connect();
-        Thread.sleep(1000);
     }
 
     @AfterEach
@@ -105,7 +104,7 @@ class ServiceTest {
     void shouldConsumeQuotaViaUpdateDecreaseAndReachZero() throws Exception {
         String key = "user:consume-update";
 
-        SimpleResponse insert = (SimpleResponse) service.send(new InsertRequest(
+        service.send(new InsertRequest(
                 2, TTLType.SECONDS, 5, key
         )).get();
 
@@ -134,7 +133,7 @@ class ServiceTest {
     void shouldPurgeAndFailToQueryAfterwards() throws Exception {
         String key = "user:purge-3";
 
-        SimpleResponse insert = (SimpleResponse) service.send(new InsertRequest(
+        service.send(new InsertRequest(
                 1, TTLType.SECONDS, 5, key
         )).get();
 
