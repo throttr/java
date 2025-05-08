@@ -123,7 +123,7 @@ public class Connection implements AutoCloseable {
                 }
 
                 pending.getFuture().complete(response);
-            } catch (IOException e) {
+            } catch (IOException | InterruptedException e) {
                 pending.getFuture().completeExceptionally(e);
             } finally {
                 busy = false;
