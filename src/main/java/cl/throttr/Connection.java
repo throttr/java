@@ -92,12 +92,15 @@ public class Connection implements AutoCloseable {
 
                 InputStream in = socket.getInputStream();
 
-                int first = in.read();
-                if (first == -1) {
-                    Thread.sleep(100);
-                    first = in.read();
-                    if (first == -1) throw new IOException("No response received after retry");
+                long start = System.currentTimeMillis();
+                while (in.available() == 0) {
+                    if (System.currentTimeMillis() - start > 5000) {
+                        throw new IOException("Timeout waiting for response byte");
+                    }
+                    Thread.sleep(1); // espera pasiva breve
                 }
+
+                int first = in.read();
 
                 Object response;
 
