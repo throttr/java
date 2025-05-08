@@ -164,7 +164,7 @@ public class Connection implements AutoCloseable {
     @Override
     public void close() throws IOException {
         shutdownRequested = true;
-        executor.shutdownNow();
+        executor.shutdown();
         synchronized (queue) {
             if (!busy && queue.isEmpty()) {
                 socket.close();

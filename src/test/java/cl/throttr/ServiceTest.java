@@ -57,7 +57,7 @@ class ServiceTest {
 
     @AfterEach
     void shutdown() {
-        service.close(); 
+        service.close();
     }
 
     @Test
