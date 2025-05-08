@@ -139,7 +139,7 @@ public class Connection implements AutoCloseable {
                         int expected = size.getValue() * 2 + 1;
 
                         System.out.println("Expected: " + expected);
-                        
+
                         byte[] merged = new byte[expected];
                         int offset = 0;
 
@@ -156,7 +156,7 @@ public class Connection implements AutoCloseable {
                         full[0] = head[0];
                         System.arraycopy(merged, 0, full, 1, expected);
 
-                        System.out.println("RCV QUERY 0x01  → [" + pending.getRequestType() + "] " + Binary.toHex(merged));
+                        System.out.println("RCV QUERY 0x01  → [" + pending.getRequestType() + "] " + Binary.toHex(full));
 
                         response = FullResponse.fromBytes(full, size);
                     } else {
