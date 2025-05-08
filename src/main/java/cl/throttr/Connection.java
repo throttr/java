@@ -31,6 +31,9 @@ import java.util.LinkedList;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 
+import java.util.concurrent.Executors;
+import java.util.concurrent.ExecutorService;
+
 /**
  * Connection
  */
@@ -41,6 +44,8 @@ public class Connection implements AutoCloseable {
     private final ValueSize size;
     private volatile boolean shutdownRequested = false;
     private volatile boolean closed = false;
+    private final Object lock = new Object();
+    private final ExecutorService executor = Executors.newSingleThreadExecutor();
 
     public Connection(String host, int port, ValueSize size) throws IOException {
         this.socket = new Socket(host, port);
@@ -92,71 +97,73 @@ public class Connection implements AutoCloseable {
         CompletableFuture<Object> future = new CompletableFuture<>();
         synchronized (queue) {
             queue.add(new PendingRequest(buffer, future, expectFullResponse, requestType));
-            processQueue();
+            if (!busy) {
+                busy = true;
+                executor.submit(this::processQueue);
+            }
         }
         return future;
     }
 
     private void processQueue() {
-        PendingRequest pending;
+        synchronized (lock) {
+            while (true) {
+                PendingRequest pending;
 
-        synchronized (queue) {
-            if (busy || queue.isEmpty()) return;
-            pending = queue.poll();
-            busy = true;
-        }
-
-        try {
-            OutputStream out = socket.getOutputStream();
-            InputStream in = socket.getInputStream();
-
-            System.out.println("SEND  → [" + pending.getRequestType() + "] " + Binary.toHex(pending.getBuffer()));
-
-            out.write(pending.getBuffer());
-            out.flush();
-
-            ByteArrayOutputStream fullBuffer = new ByteArrayOutputStream();
-
-            // Leer siempre 1 byte
-            byte[] head = new byte[1];
-            int read = in.read(head);
-            if (read != 1) throw new IOException("Expected 1 byte response");
-
-            fullBuffer.write(head);
-
-            byte[] finalBytes;
-            Object response;
-
-            // QUERY y primer byte == 0x01 → leer más y crear FullResponse
-            if (pending.getRequestType() == RequestType.QUERY && head[0] == 0x01) {
-                int expected = size.getValue() * 2 + 1;
-                byte[] rest = new byte[expected];
-                int offset = 0;
-
-                while (offset < expected) {
-                    int r = in.read(rest, offset, expected - offset);
-                    if (r == -1) throw new IOException("Connection closed while reading response");
-                    offset += r;
+                synchronized (queue) {
+                    if (queue.isEmpty()) {
+                        busy = false;
+                        return;
+                    }
+                    pending = queue.poll();
+                    busy = true;
                 }
 
-                fullBuffer.write(rest);
-                finalBytes = fullBuffer.toByteArray();
-                response = FullResponse.fromBytes(finalBytes, size);
-            } else {
-                // En todos los demás casos, incluído QUERY con byte != 0x01
-                finalBytes = fullBuffer.toByteArray();
-                response = new SimpleResponse(finalBytes[0] == 1);
-            }
+                try {
+                    OutputStream out = socket.getOutputStream();
+                    InputStream in = socket.getInputStream();
 
-            System.out.println("RECV  ← [" + pending.getRequestType() + "] " + Binary.toHex(finalBytes));
-            pending.getFuture().complete(response);
-        } catch (IOException e) {
-            pending.getFuture().completeExceptionally(e);
-        } finally {
-            synchronized (queue) {
-                busy = false;
+                    System.out.println("SEND  → [" + pending.getRequestType() + "] " + Binary.toHex(pending.getBuffer()));
+
+                    out.write(pending.getBuffer());
+                    out.flush();
+
+                    ByteArrayOutputStream fullBuffer = new ByteArrayOutputStream();
+
+                    byte[] head = new byte[1];
+                    int read = in.read(head);
+                    if (read != 1) throw new IOException("Expected 1 byte response");
+
+                    fullBuffer.write(head);
+
+                    byte[] finalBytes;
+                    Object response;
+
+                    if (pending.getRequestType() == RequestType.QUERY && head[0] == 0x01) {
+                        int expected = size.getValue() * 2 + 1;
+                        byte[] rest = new byte[expected];
+                        int offset = 0;
+
+                        while (offset < expected) {
+                            int r = in.read(rest, offset, expected - offset);
+                            if (r == -1) throw new IOException("Connection closed while reading response");
+                            offset += r;
+                        }
+
+                        fullBuffer.write(rest);
+                        finalBytes = fullBuffer.toByteArray();
+                        response = FullResponse.fromBytes(finalBytes, size);
+                    } else {
+                        finalBytes = fullBuffer.toByteArray();
+                        response = new SimpleResponse(finalBytes[0] == 1);
+                    }
+
+                    System.out.println("RECV  ← [" + pending.getRequestType() + "] " + Binary.toHex(finalBytes));
+                    pending.getFuture().complete(response);
+                } catch (IOException e) {
+                    pending.getFuture().completeExceptionally(e);
+                }
             }
-            processQueue(); // fuera del lock
         }
     }
 
