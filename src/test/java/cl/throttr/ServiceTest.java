@@ -61,7 +61,7 @@ class ServiceTest {
 
     @Test
     void shouldInsertAndQuerySuccessfully() throws Exception {
-        String key = "user:123";
+        String key = "user:1234";
 
         CompletableFuture<Object> insertFuture = service.send(new InsertRequest(
                 5, TTLType.SECONDS, 5, key
