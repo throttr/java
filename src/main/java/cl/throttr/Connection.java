@@ -37,6 +37,7 @@ public class Connection implements AutoCloseable {
     private final Queue<PendingRequest> queue = new LinkedList<>();
     private boolean busy = false;
     private final ValueSize size;
+    private volatile boolean shutdownRequested = false;
 
     public Connection(String host, int port, ValueSize size) throws IOException {
         this.socket = new Socket(host, port);
@@ -138,6 +139,12 @@ public class Connection implements AutoCloseable {
 
     @Override
     public void close() throws IOException {
-        socket.close();
+        shutdownRequested = true;
+
+        synchronized (queue) {
+            if (!busy && queue.isEmpty()) {
+                socket.close();
+            }
+        }
     }
 }

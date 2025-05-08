@@ -53,11 +53,6 @@ class ServiceTest {
         service.connect();
     }
 
-    @AfterEach
-    void tearDown() {
-        service.close();
-    }
-
     @Test
     void shouldInsertAndQuerySuccessfully() throws Exception {
         String key = "user:123";
