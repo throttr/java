@@ -34,6 +34,7 @@ import java.util.concurrent.CompletableFuture;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Connection
@@ -44,6 +45,7 @@ public class Connection implements AutoCloseable {
     private boolean busy = false;
     private final ValueSize size;
     private volatile boolean shutdownRequested = false;
+    private volatile boolean shouldStop = false;
     private volatile boolean closed = false;
     private final Object lock = new Object();
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -108,11 +110,11 @@ public class Connection implements AutoCloseable {
 
     private void processQueue() {
         synchronized (lock) {
-            while (true) {
+            while (!shouldStop) {
                 PendingRequest pending;
 
                 synchronized (queue) {
-                    if (queue.isEmpty()) {
+                    if (queue.isEmpty() || shouldStop) {
                         busy = false;
                         return;
                     }
@@ -163,13 +165,18 @@ public class Connection implements AutoCloseable {
 
     @Override
     public void close() throws IOException {
-        shutdownRequested = true;
+        shouldStop = true;
         executor.shutdown();
-        synchronized (queue) {
-            if (!busy && queue.isEmpty()) {
-                socket.close();
-                closed = true;
+        try {
+            if (!executor.awaitTermination(2, TimeUnit.SECONDS)) {
+                System.err.println("⚠️ Executor no terminó, forzando cierre");
+                executor.shutdownNow();
             }
-        }
+        } catch (InterruptedException ignored) {}
+
+        try {
+            socket.close();
+        } catch (IOException ignored) {}
+        closed = true;
     }
 }
