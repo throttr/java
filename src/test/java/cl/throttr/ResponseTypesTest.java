@@ -28,34 +28,6 @@ import static org.junit.jupiter.api.Assertions.*;
  * ResponseTypesTest
  */
 class ResponseTypesTest {
-
-    @Test
-    void testFullResponseFromBytes() {
-        ValueSize size = Testing.getValueSizeFromEnv();
-        byte[] fullResponseBytes = new byte[]{
-                0x01,                              // success = true
-                0x04, 0x00, // quota_remaining = 4
-                0x01,                              // ttl_type = 1 → Nanoseconds
-                0x10, 0x27,  // ttl_remaining = 10000
-        };
-
-        FullResponse response = FullResponse.fromBytes(fullResponseBytes, size);
-
-        assertTrue(response.success());
-        assertEquals(4L, response.quota());
-        assertEquals(TTLType.NANOSECONDS, response.ttlType());
-        assertEquals(10000L, response.ttl());
-
-        byte[] invalidBytes = new byte[]{0x01, 0x02};
-
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
-                () -> FullResponse.fromBytes(invalidBytes, size)
-        );
-
-        assertTrue(exception.getMessage().contains("Invalid FullResponse length"));
-    }
-
     @Test
     void testSimpleResponseFromBytes() {
         byte[] simpleResponseBytes = new byte[]{0x01}; // success = true

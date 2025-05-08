@@ -35,7 +35,15 @@ jobs:
 
       - name: Build and test
         if: ${{ github.ref_type != 'tag' }}
-        run: mvn clean verify
+        run: |
+          for i in {1..10}; do
+            nc -z localhost 9000 && echo "✅ throttr running ... " && break
+            echo "⏳ Try $i: waiting 1s..."
+            sleep 1
+          done
+          
+          nc -z localhost 9000 || (echo "❌ throttr isn't running on port 9000" && exit 1)
+          mvn clean verify
         env:
           THROTTR_SIZE: ${{ matrix.size }}
 
