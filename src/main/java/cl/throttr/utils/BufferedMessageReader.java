@@ -2,6 +2,7 @@ package cl.throttr.utils;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.SocketTimeoutException;
 
 public class BufferedMessageReader {
     private final InputStream in;
@@ -15,12 +16,15 @@ public class BufferedMessageReader {
         int offset = 0;
 
         while (offset < totalBytes) {
-            int r = in.read(buffer, offset, totalBytes - offset);
-            if (r == -1) {
-                throw new IOException("Socket closed before reading full message (" + offset + "/" + totalBytes + ")");
+            try {
+                int r = in.read(buffer, offset, totalBytes - offset);
+                if (r != -1) {
+                    offset += r;
+                }
+                System.out.println("Leyó " + r + " bytes (acumulado: " + offset + "/" + totalBytes + ")");
+            } catch (SocketTimeoutException e) {
+                throw new IOException("Timeout while waiting for more data (" + offset + "/" + totalBytes + ")", e);
             }
-            offset += r;
-            System.out.println("Leyó " + r + " bytes (acumulado: " + offset + "/" + totalBytes + ")");
         }
 
         return buffer;
