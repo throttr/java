@@ -5,6 +5,7 @@ import cl.throttr.enums.ValueSize;
 public class Testing {
     public static ValueSize getValueSizeFromEnv() {
         String size = System.getenv("THROTTR_SIZE");
+        System.out.println("🧪 THROTTR_SIZE = " + System.getenv("THROTTR_SIZE"));
         if (size == null) {
             size = "uint16"; // default
         }
