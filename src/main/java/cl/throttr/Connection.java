@@ -158,14 +158,6 @@ public class Connection implements AutoCloseable {
             } finally {
                 busy = false;
                 processQueue();
-
-                if (shutdownRequested && queue.isEmpty()) {
-                    try {
-                        socket.close();
-                        closed = true;
-                    } catch (IOException ignored) {
-                    }
-                }
             }
         }
     }
