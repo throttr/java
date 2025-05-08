@@ -154,7 +154,7 @@ class ServiceTest {
         String key = "user:ttl";
 
         service.send(new InsertRequest(
-                2, TTLType.MILLISECONDS, 200, key
+                2, TTLType.SECONDS, 1, key
         )).get();
 
         FullResponse queryAfterInsert = (FullResponse) service.send(new QueryRequest(
@@ -164,7 +164,7 @@ class ServiceTest {
 
         await()
                 .atMost(Duration.ofSeconds(5))
-                .pollInterval(Duration.ofMillis(250))
+                .pollInterval(Duration.ofSeconds(2))
                 .until(() -> {
                     SimpleResponse response = (SimpleResponse) service.send(new QueryRequest(
                             key
