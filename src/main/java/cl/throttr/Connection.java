@@ -57,10 +57,6 @@ public class Connection implements AutoCloseable {
         this.out = socket.getOutputStream();
         this.in = socket.getInputStream();
         this.size = size;
-
-        try {
-            Thread.sleep(1000); // para CI
-        } catch (InterruptedException ignored) {}
     }
 
     public CompletableFuture<Object> send(Object request) {
