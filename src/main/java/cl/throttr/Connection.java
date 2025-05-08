@@ -40,6 +40,7 @@ public class Connection implements AutoCloseable {
     public Connection(String host, int port, ValueSize size) throws IOException {
         this.socket = new Socket(host, port);
         this.socket.setTcpNoDelay(true);
+        this.socket.setSoTimeout(5000);
         this.size = size;
     }
 
