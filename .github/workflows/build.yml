@@ -41,6 +41,7 @@ jobs:
             sleep 1
           done
           nc -z localhost 9000 || (echo "❌ throttr isn't running on port 9000" && exit 1)
+          sleep 1 
 
       - name: Build and test
         if: ${{ github.ref_type != 'tag' }}
