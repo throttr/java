@@ -45,6 +45,11 @@ public class Connection implements AutoCloseable {
         this.socket.setTcpNoDelay(true);
         this.socket.setSoTimeout(5000);
         this.size = size;
+
+        try {
+            Thread.sleep(1000); // espera a que el servidor contenedor quede listo (solo en CI se nota)
+        } catch (InterruptedException ignored) {
+        }
     }
 
     public CompletableFuture<Object> send(Object request) {
@@ -111,8 +116,15 @@ public class Connection implements AutoCloseable {
                         throw new IOException("Timeout waiting for response");
                     }
 
+                    if (in.available() == 0) {
+                        Thread.sleep(1); // evita busy-wait real
+                        continue;
+                    }
+
                     int read = in.read(temp);
-                    if (read == -1) throw new IOException("Connection closed unexpectedly");
+                    if (read == -1) {
+                        throw new IOException("Connection closed unexpectedly");
+                    }
 
                     fullBuffer.write(temp, 0, read);
                     total += read;
@@ -126,8 +138,6 @@ public class Connection implements AutoCloseable {
                     } else {
                         if (total >= 1) break;
                     }
-
-                    Thread.sleep(1);
                 }
                 Object response;
 
