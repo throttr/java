@@ -154,6 +154,7 @@ public class Connection implements AutoCloseable {
                     System.out.println("RECV  ← [" + pending.getRequestType() + "] " + Binary.toHex(fullBytes));
                     pending.getFuture().complete(response);
                 } catch (IOException e) {
+                    System.out.println("ERROR  ← [" + e.getMessage() + "]");
                     pending.getFuture().completeExceptionally(e);
                 }
             }

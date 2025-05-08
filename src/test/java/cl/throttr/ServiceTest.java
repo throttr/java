@@ -66,6 +66,7 @@ class ServiceTest {
         CompletableFuture<Object> insertFuture = service.send(new InsertRequest(
                 5, TTLType.SECONDS, 5, key
         ));
+
         SimpleResponse insert = (SimpleResponse) insertFuture.get();
 
         assertTrue(insert.success());
