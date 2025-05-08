@@ -44,7 +44,6 @@ public class Connection implements AutoCloseable {
     private final Queue<PendingRequest> queue = new LinkedList<>();
     private boolean busy = false;
     private final ValueSize size;
-    private volatile boolean shutdownRequested = false;
     private volatile boolean shouldStop = false;
     private volatile boolean closed = false;
     private final Object lock = new Object();
@@ -57,9 +56,8 @@ public class Connection implements AutoCloseable {
         this.size = size;
 
         try {
-            Thread.sleep(1000); // espera a que el servidor contenedor quede listo (solo en CI se nota)
-        } catch (InterruptedException ignored) {
-        }
+            Thread.sleep(1000); // para CI
+        } catch (InterruptedException ignored) {}
     }
 
     public CompletableFuture<Object> send(Object request) {
@@ -98,13 +96,15 @@ public class Connection implements AutoCloseable {
         }
 
         CompletableFuture<Object> future = new CompletableFuture<>();
+
         synchronized (queue) {
             queue.add(new PendingRequest(buffer, future, expectFullResponse, requestType));
-            if (!busy) {
+            if (!busy && !executor.isShutdown()) {
                 busy = true;
                 executor.submit(this::processQueue);
             }
         }
+
         return future;
     }
 
@@ -114,12 +114,11 @@ public class Connection implements AutoCloseable {
                 PendingRequest pending;
 
                 synchronized (queue) {
-                    if (queue.isEmpty() || shouldStop) {
+                    if (queue.isEmpty()) {
                         busy = false;
                         return;
                     }
                     pending = queue.poll();
-                    busy = true;
                 }
 
                 try {
@@ -158,6 +157,7 @@ public class Connection implements AutoCloseable {
                 } catch (IOException e) {
                     System.out.println("ERROR  ← [" + e.getMessage() + "]");
                     pending.getFuture().completeExceptionally(e);
+                    break; // rompe el loop si falla
                 }
             }
         }
@@ -169,14 +169,11 @@ public class Connection implements AutoCloseable {
         executor.shutdown();
         try {
             if (!executor.awaitTermination(2, TimeUnit.SECONDS)) {
-                System.err.println("⚠️ Executor no terminó, forzando cierre");
                 executor.shutdownNow();
             }
         } catch (InterruptedException ignored) {}
 
-        try {
-            socket.close();
-        } catch (IOException ignored) {}
+        socket.close();
         closed = true;
     }
 }
