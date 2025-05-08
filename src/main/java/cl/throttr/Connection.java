@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.util.LinkedList;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
@@ -44,12 +45,10 @@ public class Connection implements AutoCloseable {
     private final Queue<PendingRequest> queue = new LinkedList<>();
     private boolean busy = false;
     private final ValueSize size;
-    private volatile boolean shouldStop = false;
     private volatile boolean closed = false;
-    private final Object lock = new Object();
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
-    private OutputStream out;
-    private InputStream in;
+    private final OutputStream out;
+    private final InputStream in;
 
     public Connection(String host, int port, ValueSize size) throws IOException {
         this.socket = new Socket(host, port);
@@ -132,6 +131,10 @@ public class Connection implements AutoCloseable {
 
                 byte[] head = in.readNBytes(1);
 
+                if (head.length < 1) {
+                    throw new IOException("Unexpected EOF while reading response");
+                }
+
                 if (pending.getRequestType() == RequestType.QUERY) {
                     if (head[0] == 0x01) {
                         byte[] tail = in.readNBytes(size.getValue() * 2 + 1);
@@ -170,7 +173,6 @@ public class Connection implements AutoCloseable {
 
     @Override
     public void close() throws IOException {
-        shouldStop = true;
         executor.shutdown();
         try {
             if (!executor.awaitTermination(2, TimeUnit.SECONDS)) {
