@@ -35,10 +35,11 @@ public class Connection implements AutoCloseable {
     private final Socket socket;
     private final Queue<PendingRequest> queue = new LinkedList<>();
     private boolean busy = false;
-    private ValueSize size;
+    private final ValueSize size;
 
     public Connection(String host, int port, ValueSize size) throws IOException {
         this.socket = new Socket(host, port);
+        this.socket.setTcpNoDelay(true);
         this.size = size;
     }
 
