@@ -136,14 +136,26 @@ public class Connection implements AutoCloseable {
 
                 if (pending.getRequestType() == RequestType.QUERY) {
                     if (head[0] == 0x01) {
-                        byte[] tail = in.readNBytes(size.getValue() * 2 + 1);
-                        byte[] merged = new byte[head.length + tail.length];
-                        System.arraycopy(head, 0, merged, 0, head.length);
-                        System.arraycopy(tail, 0, merged, head.length, tail.length);
+                        int expected = size.getValue() * 2 + 1;
+                        byte[] merged = new byte[expected];
+                        int offset = 0;
+
+                        while (offset < expected) {
+                            byte[] chunk = in.readNBytes(expected - offset);
+                            if (chunk.length == 0) {
+                                continue; // sigue intentando hasta que lea algo útil
+                            }
+                            System.arraycopy(chunk, 0, merged, offset, chunk.length);
+                            offset += chunk.length;
+                        }
+
+                        byte[] full = new byte[1 + expected];
+                        full[0] = head[0];
+                        System.arraycopy(merged, 0, full, 1, expected);
 
                         System.out.println("RCV QUERY 0x01  → [" + pending.getRequestType() + "] " + Binary.toHex(merged));
 
-                        response = FullResponse.fromBytes(merged, size);
+                        response = FullResponse.fromBytes(full, size);
                     } else {
                         System.out.println("RCV QUERY 0x00  → [" + pending.getRequestType() + "] " + Binary.toHex(head));
 
