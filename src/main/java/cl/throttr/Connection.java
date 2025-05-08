@@ -21,14 +21,11 @@ import cl.throttr.requests.*;
 import cl.throttr.responses.FullResponse;
 import cl.throttr.responses.SimpleResponse;
 import cl.throttr.utils.Binary;
-import cl.throttr.utils.BufferedMessageReader;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
-import java.net.SocketTimeoutException;
 import java.util.LinkedList;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
@@ -118,8 +115,6 @@ public class Connection implements AutoCloseable {
             }
 
             try {
-                System.out.println("SEND  → [" + pending.getRequestType() + "] " + Binary.toHex(pending.getBuffer()));
-
                 out.write(pending.getBuffer());
                 out.flush();
 
@@ -133,8 +128,6 @@ public class Connection implements AutoCloseable {
                 if (pending.getRequestType() == RequestType.QUERY) {
                     if (head[0] == 0x01) {
                         int expected = size.getValue() * 2 + 1;
-
-                        System.out.println("Expected: " + expected);
 
                         byte[] merged = new byte[expected];
                         int offset = 0;
@@ -151,23 +144,16 @@ public class Connection implements AutoCloseable {
                         byte[] full = new byte[1 + expected];
                         full[0] = head[0];
                         System.arraycopy(merged, 0, full, 1, expected);
-
-                        System.out.println("RCV QUERY 0x01  → [" + pending.getRequestType() + "] " + Binary.toHex(full));
-
                         response = FullResponse.fromBytes(full, size);
                     } else {
-                        System.out.println("RCV QUERY 0x00  → [" + pending.getRequestType() + "] " + Binary.toHex(head));
-
                         response = new SimpleResponse(false);
                     }
                 } else {
-                    System.out.println("RCV OTHERS  → [" + pending.getRequestType() + "] " + Binary.toHex(head));
                     response = new SimpleResponse(head[0] == 0x01);
                 }
 
                 pending.getFuture().complete(response);
             } catch (IOException e) {
-                System.out.println("ERROR  ← [" + e.getMessage() + "]");
                 pending.getFuture().completeExceptionally(e);
 
                 synchronized (queue) {
@@ -188,7 +174,9 @@ public class Connection implements AutoCloseable {
             if (!executor.awaitTermination(2, TimeUnit.SECONDS)) {
                 executor.shutdownNow();
             }
-        } catch (InterruptedException ignored) {}
+        } catch (InterruptedException ignored) {
+            Thread.currentThread().interrupt();
+        }
         socket.close();
         closed = true;
     }

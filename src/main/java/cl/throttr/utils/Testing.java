@@ -3,6 +3,9 @@ package cl.throttr.utils;
 import cl.throttr.enums.ValueSize;
 
 public class Testing {
+    private Testing() {
+    }
+
     public static ValueSize getValueSizeFromEnv() {
         String size = System.getenv("THROTTR_SIZE");
 

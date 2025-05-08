@@ -23,7 +23,6 @@ import cl.throttr.enums.ValueSize;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 
 import static cl.throttr.utils.Binary.put;
 

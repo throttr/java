@@ -16,7 +16,6 @@
 package cl.throttr.requests;
 
 import cl.throttr.enums.RequestType;
-import cl.throttr.enums.ValueSize;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
