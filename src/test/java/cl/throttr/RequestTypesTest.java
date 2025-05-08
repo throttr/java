@@ -34,7 +34,7 @@ class RequestTypesTest {
     void testInsertRequestToBytes() {
         ValueSize size = Testing.getValueSizeFromEnv();
         InsertRequest request = new InsertRequest(
-                5L, TTLType.SECONDS, 10000L, "user:123"
+                5L, TTLType.SECONDS, 30L, "user:123"
         );
         byte[] bytes = request.toBytes(size);
         assertNotNull(bytes);
