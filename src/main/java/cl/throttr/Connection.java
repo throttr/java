@@ -20,6 +20,7 @@ import cl.throttr.requests.*;
 import cl.throttr.responses.FullResponse;
 import cl.throttr.responses.SimpleResponse;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -85,45 +86,45 @@ public class Connection implements AutoCloseable {
             PendingRequest pending = queue.poll();
             busy = true;
 
-            try {
-                OutputStream out = socket.getOutputStream();
+            try (OutputStream out = socket.getOutputStream(); InputStream in = socket.getInputStream()) {
                 out.write(pending.getBuffer());
                 out.flush();
 
-                InputStream in = socket.getInputStream();
+                ByteArrayOutputStream fullBuffer = new ByteArrayOutputStream();
+                byte[] temp = new byte[64];
+                int total = 0;
 
                 long start = System.currentTimeMillis();
-                while (in.available() == 0) {
+                while (true) {
                     if (System.currentTimeMillis() - start > 5000) {
-                        throw new IOException("Timeout waiting for response byte");
-                    }
-                    Thread.sleep(1); // espera pasiva breve
-                }
-
-                int first = in.read();
-
-                Object response;
-
-                if (!pending.isExpectFullResponse()) {
-                    response = new SimpleResponse(first == 1);
-                } else if (first == 0) {
-                    response = new FullResponse(false, 0, null, 0);
-                } else {
-                    int payloadSize = size.getValue() * 2 + 1;
-                    byte[] rest = new byte[payloadSize];
-                    int totalRead = 0;
-                    while (totalRead < payloadSize) {
-                        int read = in.read(rest, totalRead, payloadSize - totalRead);
-                        if (read == -1) throw new IOException("Connection closed during full response");
-                        totalRead += read;
+                        throw new IOException("Timeout waiting for response");
                     }
 
-                    byte[] full = new byte[1 + payloadSize];
-                    full[0] = (byte) first;
-                    System.arraycopy(rest, 0, full, 1, payloadSize);
+                    int read = in.read(temp);
+                    if (read == -1) throw new IOException("Connection closed unexpectedly");
 
-                    response = FullResponse.fromBytes(full, size);
+                    fullBuffer.write(temp, 0, read);
+                    total += read;
+
+                    byte[] bytes = fullBuffer.toByteArray();
+
+                    if (pending.isExpectFullResponse()) {
+                        if (total >= 1 && bytes[0] == 0x00) {
+                            break; // solo primer byte
+                        }
+                        int expected = 1 + size.getValue() * 2 + 1;
+                        if (total >= expected) break;
+                    } else {
+                        if (total >= 1) break;
+                    }
+
+                    Thread.sleep(1); // evita busy-wait
                 }
+
+                byte[] finalBytes = fullBuffer.toByteArray();
+                Object response = pending.isExpectFullResponse()
+                        ? FullResponse.fromBytes(finalBytes, size)
+                        : new SimpleResponse(finalBytes[0] == 1);
 
                 pending.getFuture().complete(response);
             } catch (IOException | InterruptedException e) {
