@@ -53,7 +53,6 @@ class ServiceTest {
 
     @AfterAll
     static void shutdown() {
-        service.close();
     }
 
     @Test
@@ -100,7 +99,7 @@ class ServiceTest {
     void shouldConsumeQuotaViaUpdateDecreaseAndReachZero() throws Exception {
         String key = "user:consume-update";
 
-        service.send(new InsertRequest(
+        SimpleResponse insert = (SimpleResponse) service.send(new InsertRequest(
                 2, TTLType.SECONDS, 5, key
         )).get();
 
@@ -129,7 +128,7 @@ class ServiceTest {
     void shouldPurgeAndFailToQueryAfterwards() throws Exception {
         String key = "user:purge-3";
 
-        service.send(new InsertRequest(
+        SimpleResponse insert = (SimpleResponse) service.send(new InsertRequest(
                 1, TTLType.SECONDS, 5, key
         )).get();
 
@@ -203,8 +202,6 @@ class ServiceTest {
                 key
         )).get();
         assertFalse(queryResponse3.success());
-
-        service.close();
     }
 
     @Test

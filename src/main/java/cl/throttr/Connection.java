@@ -38,6 +38,7 @@ public class Connection implements AutoCloseable {
     private boolean busy = false;
     private final ValueSize size;
     private volatile boolean shutdownRequested = false;
+    private volatile boolean closed = false;
 
     public Connection(String host, int port, ValueSize size) throws IOException {
         this.socket = new Socket(host, port);
@@ -47,6 +48,12 @@ public class Connection implements AutoCloseable {
     }
 
     public CompletableFuture<Object> send(Object request) {
+        if (closed || socket.isClosed()) {
+            CompletableFuture<Object> failed = new CompletableFuture<>();
+            failed.completeExceptionally(new IOException("Socket is already closed"));
+            return failed;
+        }
+
         byte[] buffer;
         boolean expectFullResponse;
 
@@ -87,7 +94,10 @@ public class Connection implements AutoCloseable {
             PendingRequest pending = queue.poll();
             busy = true;
 
-            try (OutputStream out = socket.getOutputStream(); InputStream in = socket.getInputStream()) {
+            try {
+                OutputStream out = socket.getOutputStream();
+                InputStream in = socket.getInputStream();
+
                 out.write(pending.getBuffer());
                 out.flush();
 
@@ -110,22 +120,27 @@ public class Connection implements AutoCloseable {
                     byte[] bytes = fullBuffer.toByteArray();
 
                     if (pending.isExpectFullResponse()) {
-                        if (total >= 1 && bytes[0] == 0x00) {
-                            break; // solo primer byte
-                        }
+                        if (total >= 1 && bytes[0] == 0x00) break;
                         int expected = 1 + size.getValue() * 2 + 1;
                         if (total >= expected) break;
                     } else {
                         if (total >= 1) break;
                     }
 
-                    Thread.sleep(1); // evita busy-wait
+                    Thread.sleep(1);
                 }
+                Object response;
 
                 byte[] finalBytes = fullBuffer.toByteArray();
-                Object response = pending.isExpectFullResponse()
-                        ? FullResponse.fromBytes(finalBytes, size)
-                        : new SimpleResponse(finalBytes[0] == 1);
+                if (pending.isExpectFullResponse()) {
+                    if (finalBytes.length == 1 && finalBytes[0] == 0x00) {
+                        response = new FullResponse(false, 0, null, 0);
+                    } else {
+                        response = FullResponse.fromBytes(finalBytes, size);
+                    }
+                } else {
+                    response = new SimpleResponse(finalBytes[0] == 1);
+                }
 
                 pending.getFuture().complete(response);
             } catch (IOException | InterruptedException e) {
@@ -133,6 +148,14 @@ public class Connection implements AutoCloseable {
             } finally {
                 busy = false;
                 processQueue();
+
+                if (shutdownRequested && queue.isEmpty()) {
+                    try {
+                        socket.close();
+                        closed = true;
+                    } catch (IOException ignored) {
+                    }
+                }
             }
         }
     }
@@ -140,10 +163,10 @@ public class Connection implements AutoCloseable {
     @Override
     public void close() throws IOException {
         shutdownRequested = true;
-
         synchronized (queue) {
             if (!busy && queue.isEmpty()) {
                 socket.close();
+                closed = true;
             }
         }
     }
