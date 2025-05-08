@@ -129,10 +129,9 @@ public class Connection implements AutoCloseable {
 
                 Object response;
 
-                byte[] head = in.readNBytes(1);
-
-                if (head.length < 1) {
-                    throw new IOException("Unexpected EOF while reading response");
+                byte[] head = new byte[0];
+                while(head.length != 1) {
+                    head = in.readNBytes(1);
                 }
 
                 if (pending.getRequestType() == RequestType.QUERY) {
