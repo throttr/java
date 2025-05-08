@@ -132,6 +132,7 @@ public class Connection implements AutoCloseable {
 
                     byte[] head = new byte[1];
                     int read = in.read(head);
+                    System.out.println("It reads: " + read);
                     if (read != 1) throw new IOException("Expected 1 byte response");
 
                     fullBuffer.write(head);
@@ -146,6 +147,7 @@ public class Connection implements AutoCloseable {
 
                         while (offset < expected) {
                             int r = in.read(rest, offset, expected - offset);
+                            System.out.println("Leyó " + r + " bytes desde el socket");
                             if (r == -1) throw new IOException("Connection closed while reading response");
                             offset += r;
                         }
