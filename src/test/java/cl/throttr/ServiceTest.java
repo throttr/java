@@ -27,6 +27,8 @@ import cl.throttr.responses.FullResponse;
 import cl.throttr.responses.SimpleResponse;
 import cl.throttr.utils.Testing;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 
 import static org.awaitility.Awaitility.await;
 
@@ -40,6 +42,7 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * ServiceTest
  */
+@Execution(ExecutionMode.SAME_THREAD)
 class ServiceTest {
 
     private static Service service;

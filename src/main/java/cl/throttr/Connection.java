@@ -91,74 +91,70 @@ public class Connection implements AutoCloseable {
     }
 
     private void processQueue() {
+        PendingRequest pending;
+
         synchronized (queue) {
-            if (busy || queue.isEmpty()) {
-                return;
-            }
-
-            PendingRequest pending = queue.poll();
+            if (busy || queue.isEmpty()) return;
+            pending = queue.poll();
             busy = true;
+        }
 
-            try {
-                OutputStream out = socket.getOutputStream();
-                InputStream in = socket.getInputStream();
+        try {
+            OutputStream out = socket.getOutputStream();
+            InputStream in = socket.getInputStream();
 
-                out.write(pending.getBuffer());
-                out.flush();
+            out.write(pending.getBuffer());
+            out.flush();
 
-                ByteArrayOutputStream fullBuffer = new ByteArrayOutputStream();
-                byte[] temp = new byte[64];
-                int total = 0;
+            ByteArrayOutputStream fullBuffer = new ByteArrayOutputStream();
+            byte[] temp = new byte[64];
+            int total = 0;
 
-                long start = System.currentTimeMillis();
-                while (true) {
-                    if (System.currentTimeMillis() - start > 5000) {
-                        throw new IOException("Timeout waiting for response");
-                    }
-
-                    if (in.available() == 0) {
-                        Thread.sleep(1); // evita busy-wait real
-                        continue;
-                    }
-
-                    int read = in.read(temp);
-                    if (read == -1) {
-                        throw new IOException("Connection closed unexpectedly");
-                    }
-
-                    fullBuffer.write(temp, 0, read);
-                    total += read;
-
-                    byte[] bytes = fullBuffer.toByteArray();
-
-                    if (pending.isExpectFullResponse()) {
-                        if (total >= 1 && bytes[0] == 0x00) break;
-                        int expected = 1 + size.getValue() * 2 + 1;
-                        if (total >= expected) break;
-                    } else {
-                        if (total >= 1) break;
-                    }
+            long start = System.currentTimeMillis();
+            while (true) {
+                if (System.currentTimeMillis() - start > 5000) {
+                    throw new IOException("Timeout waiting for response");
                 }
-                Object response;
 
-                byte[] finalBytes = fullBuffer.toByteArray();
+                if (in.available() == 0) {
+                    Thread.sleep(1);
+                    continue;
+                }
+
+                int read = in.read(temp);
+                if (read == -1) {
+                    throw new IOException("Connection closed unexpectedly");
+                }
+
+                fullBuffer.write(temp, 0, read);
+                total += read;
+
+                byte[] bytes = fullBuffer.toByteArray();
+
                 if (pending.isExpectFullResponse()) {
-                    if (finalBytes.length == 1 && finalBytes[0] == 0x00) {
-                        response = new FullResponse(false, 0, null, 0);
-                    } else {
-                        response = FullResponse.fromBytes(finalBytes, size);
-                    }
+                    if (total >= 1 && bytes[0] == 0x00) break;
+                    int expected = 1 + size.getValue() * 2 + 1;
+                    if (total >= expected) break;
                 } else {
-                    response = new SimpleResponse(finalBytes[0] == 1);
+                    if (total >= 1) break;
                 }
-
-                pending.getFuture().complete(response);
-            } catch (IOException | InterruptedException e) {
-                pending.getFuture().completeExceptionally(e);
-            } finally {
-                busy = false;
-                processQueue();
             }
+
+            byte[] finalBytes = fullBuffer.toByteArray();
+            Object response = pending.isExpectFullResponse()
+                    ? (finalBytes.length == 1 && finalBytes[0] == 0x00
+                    ? new FullResponse(false, 0, null, 0)
+                    : FullResponse.fromBytes(finalBytes, size))
+                    : new SimpleResponse(finalBytes[0] == 1);
+
+            pending.getFuture().complete(response);
+        } catch (IOException | InterruptedException e) {
+            pending.getFuture().completeExceptionally(e);
+        } finally {
+            synchronized (queue) {
+                busy = false;
+            }
+            processQueue(); // 🧠 ahora sí, fuera del lock
         }
     }
 
