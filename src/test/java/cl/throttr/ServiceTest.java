@@ -26,9 +26,7 @@ import cl.throttr.requests.UpdateRequest;
 import cl.throttr.responses.FullResponse;
 import cl.throttr.responses.SimpleResponse;
 import cl.throttr.utils.Testing;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 
 import static org.awaitility.Awaitility.await;
 
@@ -44,13 +42,18 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class ServiceTest {
 
-    private Service service;
+    private static Service service;
 
-    @BeforeEach
-    void setUp() throws Exception {
+    @BeforeAll
+    static void setUp() throws Exception {
         ValueSize size = Testing.getValueSizeFromEnv();
         service = new Service("127.0.0.1", 9000, size,1);
         service.connect();
+    }
+
+    @AfterAll
+    static void shutdown() {
+        service.close();
     }
 
     @Test
