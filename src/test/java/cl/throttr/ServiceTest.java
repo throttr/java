@@ -49,6 +49,7 @@ class ServiceTest {
         ValueSize size = Testing.getValueSizeFromEnv();
         service = new Service("127.0.0.1", 9000, size,1);
         service.connect();
+        Thread.sleep(1000);
     }
 
     @AfterAll
