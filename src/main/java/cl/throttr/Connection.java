@@ -21,6 +21,7 @@ import cl.throttr.requests.*;
 import cl.throttr.responses.FullResponse;
 import cl.throttr.responses.SimpleResponse;
 import cl.throttr.utils.Binary;
+import cl.throttr.utils.BufferedMessageReader;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -122,45 +123,35 @@ public class Connection implements AutoCloseable {
                 try {
                     OutputStream out = socket.getOutputStream();
                     InputStream in = socket.getInputStream();
+                    BufferedMessageReader reader = new BufferedMessageReader(in);
 
                     System.out.println("SEND  → [" + pending.getRequestType() + "] " + Binary.toHex(pending.getBuffer()));
 
                     out.write(pending.getBuffer());
                     out.flush();
 
-                    ByteArrayOutputStream fullBuffer = new ByteArrayOutputStream();
-
-                    byte[] head = new byte[1];
-                    int read = in.read(head);
-                    System.out.println("It reads: " + read);
-                    if (read != 1) throw new IOException("Expected 1 byte response");
-
-                    fullBuffer.write(head);
-
-                    byte[] finalBytes;
+                    byte[] fullBytes;
                     Object response;
 
-                    if (pending.getRequestType() == RequestType.QUERY && head[0] == 0x01) {
-                        int expected = size.getValue() * 2 + 1;
-                        byte[] rest = new byte[expected];
-                        int offset = 0;
-
-                        while (offset < expected) {
-                            int r = in.read(rest, offset, expected - offset);
-                            System.out.println("Leyó " + r + " bytes desde el socket");
-                            if (r == -1) throw new IOException("Connection closed while reading response");
-                            offset += r;
+                    if (pending.getRequestType() == RequestType.QUERY) {
+                        byte[] head = reader.readFully(1);
+                        if (head[0] == 0x01) {
+                            int tailSize = size.getValue() * 2 + 1;
+                            byte[] tail = reader.readFully(tailSize);
+                            fullBytes = new byte[1 + tail.length];
+                            fullBytes[0] = head[0];
+                            System.arraycopy(tail, 0, fullBytes, 1, tail.length);
+                            response = FullResponse.fromBytes(fullBytes, size);
+                        } else {
+                            fullBytes = head;
+                            response = new SimpleResponse(false);
                         }
-
-                        fullBuffer.write(rest);
-                        finalBytes = fullBuffer.toByteArray();
-                        response = FullResponse.fromBytes(finalBytes, size);
                     } else {
-                        finalBytes = fullBuffer.toByteArray();
-                        response = new SimpleResponse(finalBytes[0] == 1);
+                        fullBytes = reader.readFully(1);
+                        response = new SimpleResponse(fullBytes[0] == 1);
                     }
 
-                    System.out.println("RECV  ← [" + pending.getRequestType() + "] " + Binary.toHex(finalBytes));
+                    System.out.println("RECV  ← [" + pending.getRequestType() + "] " + Binary.toHex(fullBytes));
                     pending.getFuture().complete(response);
                 } catch (IOException e) {
                     pending.getFuture().completeExceptionally(e);
