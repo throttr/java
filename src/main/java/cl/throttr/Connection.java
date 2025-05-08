@@ -137,6 +137,9 @@ public class Connection implements AutoCloseable {
                 if (pending.getRequestType() == RequestType.QUERY) {
                     if (head[0] == 0x01) {
                         int expected = size.getValue() * 2 + 1;
+
+                        System.out.println("Expected: " + expected);
+                        
                         byte[] merged = new byte[expected];
                         int offset = 0;
 
