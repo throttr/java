@@ -45,18 +45,18 @@ import static org.junit.jupiter.api.Assertions.*;
 @Execution(ExecutionMode.SAME_THREAD)
 class ServiceTest {
 
-    private Service service;
+    private static Service service;
 
-    @BeforeEach
-    void setUp() throws Exception {
+    @BeforeAll
+    static void setUp() throws Exception {
         ValueSize size = Testing.getValueSizeFromEnv();
         service = new Service("127.0.0.1", 9000, size,1);
         service.connect();
         Thread.sleep(1000);
     }
 
-    @AfterEach
-    void shutdown() {
+    @AfterAll
+    static void shutdown() {
         service.close();
     }
 
