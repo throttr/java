@@ -157,6 +157,15 @@ public class Connection implements AutoCloseable {
                 } catch (IOException e) {
                     System.out.println("ERROR  ← [" + e.getMessage() + "]");
                     pending.getFuture().completeExceptionally(e);
+
+                    synchronized (queue) {
+                        while (!queue.isEmpty()) {
+                            PendingRequest next = queue.poll();
+                            next.getFuture().completeExceptionally(new IOException("Connection aborted due to previous failure"));
+                        }
+                        busy = false;
+                    }
+
                     break; // rompe el loop si falla
                 }
             }
