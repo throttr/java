@@ -15,6 +15,7 @@
 
 package cl.throttr;
 
+import cl.throttr.enums.RequestType;
 import cl.throttr.requests.PendingRequest;
 import org.junit.jupiter.api.Test;
 
@@ -33,7 +34,7 @@ class PendingRequestTest {
         CompletableFuture<Object> future = new CompletableFuture<>();
         boolean expectFullResponse = true;
 
-        PendingRequest pendingRequest = new PendingRequest(buffer, future, expectFullResponse);
+        PendingRequest pendingRequest = new PendingRequest(buffer, future, expectFullResponse, RequestType.QUERY);
 
         assertArrayEquals(buffer, pendingRequest.getBuffer());
         assertEquals(future, pendingRequest.getFuture());

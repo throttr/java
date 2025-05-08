@@ -15,6 +15,8 @@
 
 package cl.throttr.requests;
 
+import cl.throttr.enums.RequestType;
+
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -24,11 +26,13 @@ public class PendingRequest {
     private final byte[] buffer;
     private final CompletableFuture<Object> future;
     private final boolean expectFullResponse;
+    private final RequestType requestType;
 
-    public PendingRequest(byte[] buffer, CompletableFuture<Object> future, boolean expectFullResponse) {
+    public PendingRequest(byte[] buffer, CompletableFuture<Object> future, boolean expectFullResponse, RequestType requestType) {
         this.buffer = buffer;
         this.future = future;
         this.expectFullResponse = expectFullResponse;
+        this.requestType = requestType;
     }
 
     public byte[] getBuffer() {
@@ -41,5 +45,9 @@ public class PendingRequest {
 
     public boolean isExpectFullResponse() {
         return expectFullResponse;
+    }
+
+    public RequestType getRequestType() {
+        return requestType;
     }
 }

@@ -141,7 +141,7 @@ class ServiceTest {
         )).get();
         assertTrue(purge.success());
 
-        FullResponse query = (FullResponse) service.send(new QueryRequest(
+        SimpleResponse query = (SimpleResponse) service.send(new QueryRequest(
                 key
         )).get();
         assertFalse(query.success());
@@ -152,7 +152,7 @@ class ServiceTest {
         String key = "user:ttl";
 
         service.send(new InsertRequest(
-                2, TTLType.SECONDS, 2, key
+                2, TTLType.MILLISECONDS, 200, key
         )).get();
 
         FullResponse queryAfterInsert = (FullResponse) service.send(new QueryRequest(
@@ -164,7 +164,7 @@ class ServiceTest {
                 .atMost(Duration.ofSeconds(5))
                 .pollInterval(Duration.ofMillis(250))
                 .until(() -> {
-                    FullResponse response = (FullResponse) service.send(new QueryRequest(
+                    SimpleResponse response = (SimpleResponse) service.send(new QueryRequest(
                             key
                     )).get();
                     return !response.success();
@@ -202,7 +202,7 @@ class ServiceTest {
         )).get();
         assertTrue(purgeResponse.success());
 
-        FullResponse queryResponse3 = (FullResponse) service.send(new QueryRequest(
+        SimpleResponse queryResponse3 = (SimpleResponse) service.send(new QueryRequest(
                 key
         )).get();
         assertFalse(queryResponse3.success());
