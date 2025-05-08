@@ -49,7 +49,7 @@ class ServiceTest {
     @BeforeEach
     void setUp() throws Exception {
         ValueSize size = Testing.getValueSizeFromEnv();
-        service = new Service("127.0.0.1", 9000, size,2);
+        service = new Service("127.0.0.1", 9000, size,1);
         service.connect();
     }
 
