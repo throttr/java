@@ -15,6 +15,11 @@
 
 package cl.throttr;
 
+import cl.throttr.enums.ValueSize;
+import cl.throttr.requests.*;
+import cl.throttr.responses.FullResponse;
+import cl.throttr.responses.SimpleResponse;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -30,35 +35,32 @@ public class Connection implements AutoCloseable {
     private final Socket socket;
     private final Queue<PendingRequest> queue = new LinkedList<>();
     private boolean busy = false;
+    private ValueSize size;
 
-    public Connection(String host, int port) throws IOException {
+    public Connection(String host, int port, ValueSize size) throws IOException {
         this.socket = new Socket(host, port);
+        this.size = size;
     }
 
     public CompletableFuture<Object> send(Object request) {
         byte[] buffer;
-        int expectedSize;
         boolean expectFullResponse;
 
         switch (request) {
             case InsertRequest insert -> {
-                buffer = insert.toBytes();
-                expectedSize = 18;
-                expectFullResponse = true;
+                buffer = insert.toBytes(size);
+                expectFullResponse = false;
             }
             case QueryRequest query -> {
                 buffer = query.toBytes();
-                expectedSize = 18;
                 expectFullResponse = true;
             }
             case UpdateRequest update -> {
-                buffer = update.toBytes();
-                expectedSize = 1;
+                buffer = update.toBytes(size);
                 expectFullResponse = false;
             }
             case PurgeRequest purge -> {
                 buffer = purge.toBytes();
-                expectedSize = 1;
                 expectFullResponse = false;
             }
             default -> throw new IllegalArgumentException("Unsupported request type: " + request.getClass());
@@ -66,7 +68,7 @@ public class Connection implements AutoCloseable {
 
         CompletableFuture<Object> future = new CompletableFuture<>();
         synchronized (queue) {
-            queue.add(new PendingRequest(buffer, future, expectedSize, expectFullResponse));
+            queue.add(new PendingRequest(buffer, future, expectFullResponse));
             processQueue();
         }
         return future;
@@ -87,22 +89,31 @@ public class Connection implements AutoCloseable {
                 out.flush();
 
                 InputStream in = socket.getInputStream();
-                byte[] responseBytes = new byte[pending.getExpectedSize()];
-                int totalRead = 0;
 
-                while (totalRead < pending.getExpectedSize()) {
-                    int read = in.read(responseBytes, totalRead, pending.getExpectedSize() - totalRead);
-                    if (read == -1) {
-                        throw new IOException("Connection closed before full response received");
-                    }
-                    totalRead += read;
-                }
+                int first = in.read();
+                if (first == -1) throw new IOException("No response received");
 
                 Object response;
-                if (pending.isExpectFullResponse()) {
-                    response = FullResponse.fromBytes(responseBytes);
+
+                if (!pending.isExpectFullResponse()) {
+                    response = new SimpleResponse(first == 1);
+                } else if (first == 0) {
+                    response = new FullResponse(false, 0, null, 0);
                 } else {
-                    response = SimpleResponse.fromBytes(responseBytes);
+                    int payloadSize = size.getValue() * 2 + 1;
+                    byte[] rest = new byte[payloadSize];
+                    int totalRead = 0;
+                    while (totalRead < payloadSize) {
+                        int read = in.read(rest, totalRead, payloadSize - totalRead);
+                        if (read == -1) throw new IOException("Connection closed during full response");
+                        totalRead += read;
+                    }
+
+                    byte[] full = new byte[1 + payloadSize];
+                    full[0] = (byte) first;
+                    System.arraycopy(rest, 0, full, 1, payloadSize);
+
+                    response = FullResponse.fromBytes(full, size);
                 }
 
                 pending.getFuture().complete(response);

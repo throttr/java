@@ -15,6 +15,12 @@
 
 package cl.throttr;
 
+import cl.throttr.enums.*;
+import cl.throttr.requests.InsertRequest;
+import cl.throttr.requests.PurgeRequest;
+import cl.throttr.requests.QueryRequest;
+import cl.throttr.requests.UpdateRequest;
+import cl.throttr.utils.Testing;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -26,10 +32,11 @@ class RequestTypesTest {
 
     @Test
     void testInsertRequestToBytes() {
+        ValueSize size = Testing.getValueSizeFromEnv();
         InsertRequest request = new InsertRequest(
-                5L, 0L, TTLType.SECONDS, 10000L, "user:123", "/api/test"
+                5L, TTLType.SECONDS, 10000L, "user:123"
         );
-        byte[] bytes = request.toBytes();
+        byte[] bytes = request.toBytes(size);
         assertNotNull(bytes);
         assertTrue(bytes.length > 0);
         assertEquals((byte) RequestType.INSERT.getValue(), bytes[0]);
@@ -37,9 +44,7 @@ class RequestTypesTest {
 
     @Test
     void testQueryRequestToBytes() {
-        QueryRequest request = new QueryRequest(
-                "user:123", "/api/test"
-        );
+        QueryRequest request = new QueryRequest("user:123");
         byte[] bytes = request.toBytes();
         assertNotNull(bytes);
         assertTrue(bytes.length > 0);
@@ -48,10 +53,11 @@ class RequestTypesTest {
 
     @Test
     void testUpdateRequestToBytes() {
+        ValueSize size = Testing.getValueSizeFromEnv();
         UpdateRequest request = new UpdateRequest(
-                AttributeType.QUOTA, ChangeType.DECREASE, 5L, "user:123", "/api/test"
+                AttributeType.QUOTA, ChangeType.DECREASE, 5L, "user:123"
         );
-        byte[] bytes = request.toBytes();
+        byte[] bytes = request.toBytes(size);
         assertNotNull(bytes);
         assertTrue(bytes.length > 0);
         assertEquals((byte) RequestType.UPDATE.getValue(), bytes[0]);
@@ -59,9 +65,7 @@ class RequestTypesTest {
 
     @Test
     void testPurgeRequestToBytes() {
-        PurgeRequest request = new PurgeRequest(
-                "user:123", "/api/test"
-        );
+        PurgeRequest request = new PurgeRequest("user:123");
         byte[] bytes = request.toBytes();
         assertNotNull(bytes);
         assertTrue(bytes.length > 0);

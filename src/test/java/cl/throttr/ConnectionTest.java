@@ -15,6 +15,8 @@
 
 package cl.throttr;
 
+import cl.throttr.enums.ValueSize;
+import cl.throttr.utils.Testing;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Method;
@@ -32,7 +34,8 @@ class ConnectionTest {
 
     @Test
     void testProcessQueueWithEmptyQueue() throws Exception {
-        Connection conn = new Connection("127.0.0.1", 9000);
+        ValueSize size = Testing.getValueSizeFromEnv();
+        Connection conn = new Connection("127.0.0.1", 9000, size);
 
         Method method = Connection.class.getDeclaredMethod("processQueue");
         method.setAccessible(true);
@@ -50,7 +53,8 @@ class ConnectionTest {
 
     @Test
     void shouldThrowExceptionForUnsupportedRequest() throws IOException {
-        Connection conn = new Connection("127.0.0.1", 9000);
+        ValueSize size = Testing.getValueSizeFromEnv();
+        Connection conn = new Connection("127.0.0.1", 9000, size);
 
         FakeRequest dummy = new FakeRequest();
 

@@ -15,6 +15,8 @@
 
 package cl.throttr;
 
+import cl.throttr.enums.ValueSize;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -46,6 +48,11 @@ public class Service implements AutoCloseable {
     private final int port;
 
     /**
+     * Value size
+     */
+    private final ValueSize size;
+
+    /**
      * Maximum connections
      */
     private final int maxConnections;
@@ -57,12 +64,13 @@ public class Service implements AutoCloseable {
      * @param port The Throttr remote port
      * @param maxConnections Number of pooled connections
      */
-    public Service(String host, int port, int maxConnections) {
+    public Service(String host, int port, ValueSize size, int maxConnections) {
         if (maxConnections <= 0) {
             throw new IllegalArgumentException("maxConnections must be greater than 0.");
         }
         this.host = host;
         this.port = port;
+        this.size = size;
         this.maxConnections = maxConnections;
     }
 
@@ -73,7 +81,7 @@ public class Service implements AutoCloseable {
      */
     public void connect() throws IOException {
         for (int i = 0; i < maxConnections; i++) {
-            Connection conn = new Connection(host, port);
+            Connection conn = new Connection(host, port, size);
             connections.add(conn);
         }
     }

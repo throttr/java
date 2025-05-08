@@ -13,19 +13,18 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-package cl.throttr;
+package cl.throttr.enums;
 
 /**
  * Attribute types
  */
-public enum ChangeType {
-    PATCH(0),
-    INCREASE(1),
-    DECREASE(2);
+public enum AttributeType {
+    QUOTA(0),
+    TTL(1);
 
     private final int value;
 
-    ChangeType(int value) {
+    AttributeType(int value) {
         this.value = value;
     }
 

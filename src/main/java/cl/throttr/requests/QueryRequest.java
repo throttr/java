@@ -13,18 +13,20 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-package cl.throttr;
+package cl.throttr.requests;
+
+import cl.throttr.enums.RequestType;
+import cl.throttr.enums.ValueSize;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 
 /**
- * Purge request
+ * Query request
  */
-public record PurgeRequest(
-        String consumerId,
-        String resourceId
+public record QueryRequest(
+        String key
 ) {
     /**
      * To bytes
@@ -32,19 +34,16 @@ public record PurgeRequest(
      * @return byte[]
      */
     public byte[] toBytes() {
-        byte[] consumerIdBytes = consumerId.getBytes(StandardCharsets.UTF_8);
-        byte[] resourceIdBytes = resourceId.getBytes(StandardCharsets.UTF_8);
+        byte[] keyBytes = key.getBytes(StandardCharsets.UTF_8);
 
         var buffer = ByteBuffer.allocate(
-                1 + 1 + 1 + consumerIdBytes.length + resourceIdBytes.length
+                2 + keyBytes.length
         );
         buffer.order(ByteOrder.LITTLE_ENDIAN);
 
-        buffer.put((byte) RequestType.PURGE.getValue());
-        buffer.put((byte) consumerIdBytes.length);
-        buffer.put((byte) resourceIdBytes.length);
-        buffer.put(consumerIdBytes);
-        buffer.put(resourceIdBytes);
+        buffer.put((byte) RequestType.QUERY.getValue());
+        buffer.put((byte) keyBytes.length);
+        buffer.put(keyBytes);
 
         return buffer.array();
     }

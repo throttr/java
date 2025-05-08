@@ -32,7 +32,7 @@ Add the dependency to your `pom.xml`:
 <dependency>
     <groupId>cl.throttr</groupId>
     <artifactId>sdk</artifactId>
-    <version>2.0.0</version>
+    <version>3.0.0</version>
 </dependency>
 ```
 
@@ -46,15 +46,15 @@ package your.source;
 import java.util.concurrent.CompletableFuture;
 
 import cl.throttr.Service;
-import cl.throttr.InsertRequest;
-import cl.throttr.QueryRequest;
-import cl.throttr.UpdateRequest;
-import cl.throttr.PurgeRequest;
-import cl.throttr.TTLType;
-import cl.throttr.AttributeType;
-import cl.throttr.ChangeType;
-import cl.throttr.FullResponse;
-import cl.throttr.SimpleResponse;
+import cl.throttr.requests.InsertRequest;
+import cl.throttr.requests.QueryRequest;
+import cl.throttr.requests.UpdateRequest;
+import cl.throttr.requests.PurgeRequest;
+import cl.throttr.enums.TTLType;
+import cl.throttr.enums.AttributeType;
+import cl.throttr.enums.ChangeType;
+import cl.throttr.responses.FullResponse;
+import cl.throttr.responses.SimpleResponse;
 
 public class ExampleUsage {
 
@@ -66,23 +66,19 @@ public class ExampleUsage {
             service.connect();
 
             // Define a consumer and resource
-            String consumerId = "127.0.0.1:1234";
-            String resourceId = "GET /api/resource";
+            String key = "127.0.0.1:1234|GET /api/resource";
 
             // Insert quota
             CompletableFuture<Object> insertFuture = service.send(new InsertRequest(
-                    5L, 0L, TTLType.Milliseconds, 3000L, consumerId, resourceId
+                    5L, TTLType.Milliseconds, 3000L, key
             ));
-            FullResponse insertResponse = (FullResponse) insertFuture.get();
+            SimpleResponse insertResponse = (SimpleResponse) insertFuture.get();
 
-            System.out.println("Allowed: " + insertResponse.allowed());
-            System.out.println("Remaining: " + insertResponse.quotaRemaining());
-            System.out.println("TTL type: " + insertResponse.ttlType());
-            System.out.println("TTL remaining: " + insertResponse.ttlRemaining());
+            System.out.println("Allowed: " + insertResponse.success());
 
             // Update the quota
             CompletableFuture<Object> updateFuture = service.send(new UpdateRequest(
-                    AttributeType.QUOTA, ChangeType.DECREASE, 1L, consumerId, resourceId
+                    AttributeType.QUOTA, ChangeType.DECREASE, 1L, key
             ));
             SimpleResponse updateResponse = (SimpleResponse) updateFuture.get();
             System.out.println("Quota updated successfully: " + updateResponse.success());
@@ -93,10 +89,10 @@ public class ExampleUsage {
             ));
             FullResponse queryResponse = (FullResponse) queryFuture.get();
 
-            System.out.println("Allowed after update: " + queryResponse.allowed());
-            System.out.println("Remaining after update: " + queryResponse.quotaRemaining());
+            System.out.println("Allowed after update: " + queryResponse.success());
+            System.out.println("Remaining after update: " + queryResponse.quota());
             System.out.println("TTL type: " + queryResponse.ttlType());
-            System.out.println("TTL after update: " + queryResponse.ttlRemaining());
+            System.out.println("TTL after update: " + queryResponse.ttl());
 
             // Optionally, purge the quota
             CompletableFuture<Object> purgeFuture = service.send(new PurgeRequest(
@@ -121,7 +117,7 @@ public class ExampleUsage {
 
 - The protocol assumes Little Endian architecture.
 - The internal message queue ensures requests are processed sequentially.
-- The package is defined to works with protocol 2.0.0 or greatest.
+- The package is defined to works with protocol 4.0.9 or greatest.
 
 ---
 

@@ -15,6 +15,11 @@
 
 package cl.throttr;
 
+import cl.throttr.enums.TTLType;
+import cl.throttr.enums.ValueSize;
+import cl.throttr.responses.FullResponse;
+import cl.throttr.responses.SimpleResponse;
+import cl.throttr.utils.Testing;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -26,26 +31,26 @@ class ResponseTypesTest {
 
     @Test
     void testFullResponseFromBytes() {
+        ValueSize size = Testing.getValueSizeFromEnv();
         byte[] fullResponseBytes = new byte[]{
-                0x01,                              // allowed = true
-                0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // quota_remaining = 4
-                0x01,                              // ttl_type = 1 → Milliseconds
-                0x10, 0x27, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00  // ttl_remaining = 10000
+                0x01,                              // success = true
+                0x04, 0x00, // quota_remaining = 4
+                0x01,                              // ttl_type = 1 → Nanoseconds
+                0x10, 0x27,  // ttl_remaining = 10000
         };
 
-        FullResponse response = FullResponse.fromBytes(fullResponseBytes);
+        FullResponse response = FullResponse.fromBytes(fullResponseBytes, size);
 
-        assertTrue(response.allowed());
-        assertEquals(4L, response.quotaRemaining());
-        assertEquals(TTLType.MILLISECONDS, response.ttlType());
-        assertEquals(10000L, response.ttlRemaining());
-
+        assertTrue(response.success());
+        assertEquals(4L, response.quota());
+        assertEquals(TTLType.NANOSECONDS, response.ttlType());
+        assertEquals(10000L, response.ttl());
 
         byte[] invalidBytes = new byte[]{0x01, 0x02};
 
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
-                () -> FullResponse.fromBytes(invalidBytes)
+                () -> FullResponse.fromBytes(invalidBytes, size)
         );
 
         assertTrue(exception.getMessage().contains("Invalid FullResponse length"));

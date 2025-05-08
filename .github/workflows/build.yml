@@ -10,16 +10,15 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    strategy:
+      matrix:
+        size: [uint8, uint16, uint32, uint64]
+
     services:
       throttr:
-        image: ghcr.io/throttr/throttr:2.0.0-release
+        image: ghcr.io/throttr/throttr:4.0.9-debug-${{ matrix.size }}
         ports:
           - 9000:9000
-        options: >-
-          --health-cmd "bash -c 'echo > /dev/tcp/localhost/9000'" 
-          --health-interval 5s
-          --health-timeout 3s
-          --health-retries 5
 
     steps:
       - name: Checkout code
@@ -37,15 +36,19 @@ jobs:
       - name: Build and test
         if: ${{ github.ref_type != 'tag' }}
         run: mvn clean verify
+        env:
+          THROTTR_SIZE: ${{ matrix.size }}
 
       - name: Release
-        if: ${{ github.ref_type == 'tag' }}
+        if: ${{ github.ref_type == 'tag' && matrix.size == 'uint16' }}
         run: mvn --batch-mode deploy
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          THROTTR_SIZE: ${{ matrix.size }}
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
+        if: ${{ matrix.size == 'uint16' }}
         with:
           files: ./target/site/jacoco/jacoco.xml
           flags: unittests

@@ -13,7 +13,11 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-package cl.throttr;
+package cl.throttr.responses;
+
+import cl.throttr.enums.TTLType;
+import cl.throttr.enums.ValueSize;
+import cl.throttr.utils.Binary;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -22,10 +26,10 @@ import java.nio.ByteOrder;
  * Full response
  */
 public record FullResponse(
-        boolean allowed,
-        long quotaRemaining,
+        boolean success,
+        long quota,
         TTLType ttlType,
-        long ttlRemaining
+        long ttl
 ) {
     /**
      * Parse from bytes
@@ -33,20 +37,20 @@ public record FullResponse(
      * @param data Byte array (must be 18 bytes)
      * @return FullResponse
      */
-    public static FullResponse fromBytes(byte[] data) {
-        if (data.length != 18) {
+    public static FullResponse fromBytes(byte[] data, ValueSize size) {
+        int expected = 1 + size.getValue() + 1 + size.getValue();
+        if (data.length != expected) {
             throw new IllegalArgumentException("Invalid FullResponse length: " + data.length);
         }
 
         var buffer = ByteBuffer.wrap(data);
         buffer.order(ByteOrder.LITTLE_ENDIAN);
 
-        boolean allowed = buffer.get() == 1;
-        long quotaRemaining = buffer.getLong();
-        byte ttlTypeRaw = buffer.get();
-        TTLType ttlType = TTLType.values()[ttlTypeRaw];
-        long ttlRemaining = buffer.getLong();
+        boolean success = buffer.get() == 1;
+        long quota = Binary.read(buffer, size);
+        TTLType ttlType = TTLType.fromByte(buffer.get());
+        long ttl = Binary.read(buffer, size);
 
-        return new FullResponse(allowed, quotaRemaining, ttlType, ttlRemaining);
+        return new FullResponse(success, quota, ttlType, ttl);
     }
 }

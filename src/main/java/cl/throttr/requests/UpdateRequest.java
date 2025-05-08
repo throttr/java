@@ -13,11 +13,18 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-package cl.throttr;
+package cl.throttr.requests;
+
+import cl.throttr.enums.AttributeType;
+import cl.throttr.enums.ChangeType;
+import cl.throttr.enums.RequestType;
+import cl.throttr.enums.ValueSize;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
+
+import static cl.throttr.utils.Binary.put;
 
 /**
  * Update request
@@ -26,31 +33,27 @@ public record UpdateRequest(
         AttributeType attribute,
         ChangeType change,
         long value,
-        String consumerId,
-        String resourceId
+        String key
 ) {
     /**
      * To bytes
      *
      * @return byte[]
      */
-    public byte[] toBytes() {
-        byte[] consumerIdBytes = consumerId.getBytes(StandardCharsets.UTF_8);
-        byte[] resourceIdBytes = resourceId.getBytes(StandardCharsets.UTF_8);
+    public byte[] toBytes(ValueSize size) {
+        byte[] keyBytes = key.getBytes(StandardCharsets.UTF_8);
 
         var buffer = ByteBuffer.allocate(
-                1 + 1 + 1 + 8 + 1 + 1 + consumerIdBytes.length + resourceIdBytes.length
+                4 + size.getValue() + keyBytes.length
         );
         buffer.order(ByteOrder.LITTLE_ENDIAN);
 
         buffer.put((byte) RequestType.UPDATE.getValue());
         buffer.put((byte) attribute.getValue());
         buffer.put((byte) change.getValue());
-        buffer.putLong(value);
-        buffer.put((byte) consumerIdBytes.length);
-        buffer.put((byte) resourceIdBytes.length);
-        buffer.put(consumerIdBytes);
-        buffer.put(resourceIdBytes);
+        put(buffer, value, size);
+        buffer.put((byte) keyBytes.length);
+        buffer.put(keyBytes);
 
         return buffer.array();
     }

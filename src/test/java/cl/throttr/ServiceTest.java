@@ -15,6 +15,17 @@
 
 package cl.throttr;
 
+import cl.throttr.enums.AttributeType;
+import cl.throttr.enums.ChangeType;
+import cl.throttr.enums.TTLType;
+import cl.throttr.enums.ValueSize;
+import cl.throttr.requests.InsertRequest;
+import cl.throttr.requests.PurgeRequest;
+import cl.throttr.requests.QueryRequest;
+import cl.throttr.requests.UpdateRequest;
+import cl.throttr.responses.FullResponse;
+import cl.throttr.responses.SimpleResponse;
+import cl.throttr.utils.Testing;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -37,7 +48,8 @@ class ServiceTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        service = new Service("127.0.0.1", 9000, 2);
+        ValueSize size = Testing.getValueSizeFromEnv();
+        service = new Service("127.0.0.1", 9000, size,2);
         service.connect();
     }
 
@@ -48,173 +60,161 @@ class ServiceTest {
 
     @Test
     void shouldInsertAndQuerySuccessfully() throws Exception {
-        String consumerId = "user:123";
-        String resourceId = "/api/test";
+        String key = "user:123";
 
         CompletableFuture<Object> insertFuture = service.send(new InsertRequest(
-                5, 0, TTLType.SECONDS, 5, consumerId, resourceId
+                5, TTLType.SECONDS, 5, key
         ));
-        FullResponse insert = (FullResponse) insertFuture.get();
+        SimpleResponse insert = (SimpleResponse) insertFuture.get();
 
-        assertTrue(insert.allowed());
+        assertTrue(insert.success());
 
         CompletableFuture<Object> queryFuture = service.send(new QueryRequest(
-                consumerId, resourceId
+                key
         ));
         FullResponse query = (FullResponse) queryFuture.get();
 
-        assertTrue(query.allowed());
-        assertTrue(query.quotaRemaining() >= 0);
-        assertTrue(query.ttlRemaining() >= 0);
+        assertTrue(query.success());
+        assertTrue(query.quota() >= 0);
+        assertTrue(query.ttl() >= 0);
     }
 
     @Test
     void shouldConsumeQuotaViaInsertUsageAndDenyAfterExhausted() throws Exception {
-        String consumerId = "user:consume-insert";
-        String resourceId = "/api/consume-insert";
+        String key = "user:consume-insert";
 
         service.send(new InsertRequest(
-                2, 0, TTLType.SECONDS, 5, consumerId, resourceId
+                2, TTLType.SECONDS, 5, key
         )).get();
 
-        FullResponse first = (FullResponse) service.send(new InsertRequest(
-                0, 1, TTLType.SECONDS, 5, consumerId, resourceId
+        SimpleResponse first = (SimpleResponse) service.send(new InsertRequest(
+                0, TTLType.SECONDS, 5, key
         )).get();
-        assertTrue(first.allowed());
-
-        FullResponse second = (FullResponse) service.send(new InsertRequest(
-                0, 1, TTLType.SECONDS, 5, consumerId, resourceId
-        )).get();
-        assertTrue(second.allowed());
+        assertFalse(first.success());
 
         FullResponse query = (FullResponse) service.send(new QueryRequest(
-                consumerId, resourceId
+                key
         )).get();
-        assertTrue(query.quotaRemaining() <= 0);
+        assertTrue(query.quota() <= 2);
     }
 
     @Test
     void shouldConsumeQuotaViaUpdateDecreaseAndReachZero() throws Exception {
-        String consumerId = "user:consume-update";
-        String resourceId = "/api/consume-update";
+        String key = "user:consume-update";
 
         service.send(new InsertRequest(
-                2, 0, TTLType.SECONDS, 5, consumerId, resourceId
+                2, TTLType.SECONDS, 5, key
         )).get();
 
         SimpleResponse firstUpdate = (SimpleResponse) service.send(new UpdateRequest(
-                AttributeType.QUOTA, ChangeType.DECREASE, 1, consumerId, resourceId
+                AttributeType.QUOTA, ChangeType.DECREASE, 1, key
         )).get();
         assertTrue(firstUpdate.success());
 
         SimpleResponse secondUpdate = (SimpleResponse) service.send(new UpdateRequest(
-                AttributeType.QUOTA, ChangeType.DECREASE, 1, consumerId, resourceId
+                AttributeType.QUOTA, ChangeType.DECREASE, 1, key
         )).get();
         assertTrue(secondUpdate.success());
 
         SimpleResponse thirdUpdate = (SimpleResponse) service.send(new UpdateRequest(
-                AttributeType.QUOTA, ChangeType.DECREASE, 1, consumerId, resourceId
+                AttributeType.QUOTA, ChangeType.DECREASE, 1, key
         )).get();
-        assertTrue(thirdUpdate.success());
+        assertFalse(thirdUpdate.success());
 
         FullResponse query = (FullResponse) service.send(new QueryRequest(
-                consumerId, resourceId
+                key
         )).get();
-        assertTrue(query.quotaRemaining() <= 0);
+        assertTrue(query.quota() <= 0);
     }
 
     @Test
     void shouldPurgeAndFailToQueryAfterwards() throws Exception {
-        String consumerId = "user:purge";
-        String resourceId = "/api/purge";
+        String key = "user:purge-3";
 
         service.send(new InsertRequest(
-                1, 0, TTLType.SECONDS, 5, consumerId, resourceId
+                1, TTLType.SECONDS, 5, key
         )).get();
 
         SimpleResponse purge = (SimpleResponse) service.send(new PurgeRequest(
-                consumerId, resourceId
+                key
         )).get();
         assertTrue(purge.success());
 
         FullResponse query = (FullResponse) service.send(new QueryRequest(
-                consumerId, resourceId
+                key
         )).get();
-        assertFalse(query.allowed());
+        assertFalse(query.success());
     }
 
     @Test
     void shouldResetQuotaAfterTTLExpiration() throws Exception {
-        String consumerId = "user:ttl";
-        String resourceId = "/api/ttl";
+        String key = "user:ttl";
 
         service.send(new InsertRequest(
-                1, 1, TTLType.SECONDS, 2, consumerId, resourceId
+                2, TTLType.SECONDS, 2, key
         )).get();
 
         FullResponse queryAfterInsert = (FullResponse) service.send(new QueryRequest(
-                consumerId, resourceId
+                key
         )).get();
-        assertTrue(queryAfterInsert.quotaRemaining() <= 0);
+        assertTrue(queryAfterInsert.quota() <= 2);
 
         await()
                 .atMost(Duration.ofSeconds(5))
                 .pollInterval(Duration.ofMillis(250))
                 .until(() -> {
                     FullResponse response = (FullResponse) service.send(new QueryRequest(
-                            consumerId, resourceId
+                            key
                     )).get();
-                    return !response.allowed();
+                    return !response.success();
                 });
     }
 
     @Test
     void shouldAllTheFlowWorksAsExpected() throws Exception {
-        String consumerId = "user:purge";
-        String resourceId = "/api/purge";
+        String key = "user:purge-2";
 
-        FullResponse insertResponse = (FullResponse) service.send(new InsertRequest(
-                10, 0, TTLType.SECONDS, 30, consumerId, resourceId
+        SimpleResponse insertResponse = (SimpleResponse) service.send(new InsertRequest(
+                10, TTLType.SECONDS, 30, key
         )).get();
-        assertTrue(insertResponse.allowed());
-        assertEquals(10L, insertResponse.quotaRemaining());
-        assertEquals(TTLType.SECONDS, insertResponse.ttlType());
+        assertTrue(insertResponse.success());
 
         FullResponse queryResponse1 = (FullResponse) service.send(new QueryRequest(
-                consumerId, resourceId
+                key
         )).get();
-        assertTrue(queryResponse1.allowed());
-        assertEquals(10L, queryResponse1.quotaRemaining());
+        assertTrue(queryResponse1.success());
+        assertEquals(10L, queryResponse1.quota());
 
         SimpleResponse updateResponse = (SimpleResponse) service.send(new UpdateRequest(
-                AttributeType.QUOTA, ChangeType.DECREASE, 5L, consumerId, resourceId
+                AttributeType.QUOTA, ChangeType.DECREASE, 5L, key
         )).get();
         assertTrue(updateResponse.success());
 
         FullResponse queryResponse2 = (FullResponse) service.send(new QueryRequest(
-                consumerId, resourceId
+                key
         )).get();
-        assertTrue(queryResponse2.allowed());
-        assertEquals(5L, queryResponse2.quotaRemaining());
+        assertTrue(queryResponse2.success());
+        assertEquals(5L, queryResponse2.quota());
 
         SimpleResponse purgeResponse = (SimpleResponse) service.send(new PurgeRequest(
-                consumerId, resourceId
+                key
         )).get();
         assertTrue(purgeResponse.success());
 
         FullResponse queryResponse3 = (FullResponse) service.send(new QueryRequest(
-                consumerId, resourceId
+                key
         )).get();
-        assertFalse(queryResponse3.allowed());
+        assertFalse(queryResponse3.success());
 
         service.close();
     }
 
     @Test
     void shouldThrowExceptionWhenMaxConnectionsIsZero() {
+        ValueSize size = Testing.getValueSizeFromEnv();
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
-                () -> new Service("127.0.0.1", 9000, 0)
+                () -> new Service("127.0.0.1", 9000, size, 0)
         );
 
         assertEquals("maxConnections must be greater than 0.", exception.getMessage());
@@ -222,9 +222,10 @@ class ServiceTest {
 
     @Test
     void shouldThrowExceptionWhenMaxConnectionsIsNegative() {
+        ValueSize size = Testing.getValueSizeFromEnv();
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
-                () -> new Service("127.0.0.1", 9000, -5)
+                () -> new Service("127.0.0.1", 9000, size, -5)
         );
 
         assertEquals("maxConnections must be greater than 0.", exception.getMessage());
@@ -232,10 +233,11 @@ class ServiceTest {
 
     @Test
     void shouldFailWhenNoConnectionsAvailable() {
-        Service local = new Service("127.0.0.1", 9000, 1);
+        ValueSize size = Testing.getValueSizeFromEnv();
+        Service local = new Service("127.0.0.1", 9000, size, 1);
 
         CompletableFuture<Object> future = local.send(new InsertRequest(
-                5, 0, TTLType.SECONDS, 5, "user:no-connection", "/api/test"
+                5, TTLType.SECONDS, 5, "user:no-connection"
         ));
 
         ExecutionException exception = assertThrows(

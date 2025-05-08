@@ -13,22 +13,24 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-package cl.throttr;
+package cl.throttr.responses;
 
 /**
- * Attribute types
+ * Simple response
  */
-public enum AttributeType {
-    QUOTA(0),
-    TTL(1);
-
-    private final int value;
-
-    AttributeType(int value) {
-        this.value = value;
-    }
-
-    public int getValue() {
-        return value;
+public record SimpleResponse(
+        boolean success
+) {
+    /**
+     * Parse from bytes
+     *
+     * @param data Byte array
+     * @return SimpleResponse
+     */
+    public static SimpleResponse fromBytes(byte[] data) {
+        if (data.length != 1) {
+            throw new IllegalArgumentException("Invalid SimpleResponse length: " + data.length);
+        }
+        return new SimpleResponse(data[0] == 1);
     }
 }

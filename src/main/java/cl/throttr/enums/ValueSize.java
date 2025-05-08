@@ -13,20 +13,20 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-package cl.throttr;
+package cl.throttr.enums;
 
 /**
- * Request types
+ * Value sizes
  */
-public enum RequestType {
-    INSERT(0x01),
-    QUERY(0x02),
-    UPDATE(0x03),
-    PURGE(0x04);
+public enum ValueSize {
+    UINT8(1),
+    UINT16(2),
+    UINT32(4),
+    UINT64(8);
 
     private final int value;
 
-    RequestType(int value) {
+    ValueSize(int value) {
         this.value = value;
     }
 

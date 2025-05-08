@@ -15,6 +15,7 @@
 
 package cl.throttr;
 
+import cl.throttr.requests.PendingRequest;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.CompletableFuture;
@@ -30,14 +31,12 @@ class PendingRequestTest {
     void testAccessors() {
         byte[] buffer = {0x01, 0x02, 0x03};
         CompletableFuture<Object> future = new CompletableFuture<>();
-        int expectedSize = 3;
         boolean expectFullResponse = true;
 
-        PendingRequest pendingRequest = new PendingRequest(buffer, future, expectedSize, expectFullResponse);
+        PendingRequest pendingRequest = new PendingRequest(buffer, future, expectFullResponse);
 
         assertArrayEquals(buffer, pendingRequest.getBuffer());
         assertEquals(future, pendingRequest.getFuture());
-        assertEquals(expectedSize, pendingRequest.getExpectedSize());
         assertTrue(pendingRequest.isExpectFullResponse());
     }
 }

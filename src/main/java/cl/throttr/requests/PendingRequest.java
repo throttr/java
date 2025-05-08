@@ -13,7 +13,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-package cl.throttr;
+package cl.throttr.requests;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -23,13 +23,11 @@ import java.util.concurrent.CompletableFuture;
 public class PendingRequest {
     private final byte[] buffer;
     private final CompletableFuture<Object> future;
-    private final int expectedSize;
     private final boolean expectFullResponse;
 
-    public PendingRequest(byte[] buffer, CompletableFuture<Object> future, int expectedSize, boolean expectFullResponse) {
+    public PendingRequest(byte[] buffer, CompletableFuture<Object> future, boolean expectFullResponse) {
         this.buffer = buffer;
         this.future = future;
-        this.expectedSize = expectedSize;
         this.expectFullResponse = expectFullResponse;
     }
 
@@ -39,10 +37,6 @@ public class PendingRequest {
 
     public CompletableFuture<Object> getFuture() {
         return future;
-    }
-
-    public int getExpectedSize() {
-        return expectedSize;
     }
 
     public boolean isExpectFullResponse() {
