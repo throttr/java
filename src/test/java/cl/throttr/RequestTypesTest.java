@@ -34,7 +34,7 @@ class RequestTypesTest {
     void testInsertRequestToBytes() {
         ValueSize size = Testing.getValueSizeFromEnv();
         InsertRequest request = new InsertRequest(
-                5L, TTLType.SECONDS, 30L, "user:123"
+                5, TTLType.SECONDS, 30, "user:123"
         );
         byte[] bytes = request.toBytes(size);
         assertNotNull(bytes);
@@ -55,7 +55,7 @@ class RequestTypesTest {
     void testUpdateRequestToBytes() {
         ValueSize size = Testing.getValueSizeFromEnv();
         UpdateRequest request = new UpdateRequest(
-                AttributeType.QUOTA, ChangeType.DECREASE, 5L, "user:123"
+                AttributeType.QUOTA, ChangeType.DECREASE, 5, "user:123"
         );
         byte[] bytes = request.toBytes(size);
         assertNotNull(bytes);

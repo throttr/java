@@ -184,10 +184,10 @@ class ServiceTest {
                 key
         )).get();
         assertTrue(queryResponse1.success());
-        assertEquals(10L, queryResponse1.quota());
+        assertEquals(10, queryResponse1.quota());
 
         SimpleResponse updateResponse = (SimpleResponse) service.send(new UpdateRequest(
-                AttributeType.QUOTA, ChangeType.DECREASE, 5L, key
+                AttributeType.QUOTA, ChangeType.DECREASE, 5, key
         )).get();
         assertTrue(updateResponse.success());
 
