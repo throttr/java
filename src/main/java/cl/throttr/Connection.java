@@ -96,8 +96,18 @@ public class Connection implements AutoCloseable {
             int expected = size.getValue() * 2 + 1;
             byte[] merged = new byte[expected];
 
-            int offset = 0;
-            while (offset < expected) {
+            for (int offset = 0; offset < expected; ) {
+                int available = socket.getInputStream().available();
+                if (available == 0) {
+                    try {
+                        Thread.sleep(1); // Esperamos 1 ms para que llegue el resto
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        throw new IOException("Interrupted while waiting for response.");
+                    }
+                    continue;
+                }
+
                 int read = in.read(merged, offset, expected - offset);
                 if (read == -1) {
                     throw new IOException("Unexpected EOF while reading full response.");
