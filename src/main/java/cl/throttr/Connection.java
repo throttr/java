@@ -92,16 +92,46 @@ public class Connection implements AutoCloseable {
         byte head = in.readByte();
 
         if (expectFullResponse && head == 0x01) {
+
             int expected = size.getValue() * 2 + 1;
             byte[] merged = new byte[expected];
-            in.readFully(merged);
+
+            int offset = 0;
+            while (offset < expected) {
+                int read = in.read(merged, offset, expected - offset);
+                if (read == -1) {
+                    throw new IOException("Unexpected EOF while reading full response.");
+                }
+                offset += read;
+            }
+
+//            in.readFully(merged);
             byte[] full = new byte[1 + expected];
             full[0] = head;
             System.arraycopy(merged, 0, full, 1, expected);
             System.out.println(now() + " RECV  ← 2 " + toHex(full));
+
+            int garbage = socket.getInputStream().available();
+            if (garbage > 0) {
+                byte[] residual = new byte[Math.min(garbage, 64)];
+                in.read(residual);
+                System.err.println(now() + " ⚠️ GARBAGE DETECTED: " + toHex(residual));
+                throw new IOException("Socket read desync detected, residual bytes found: " + garbage);
+            }
+
             return FullResponse.fromBytes(full, size);
         } else {
             System.out.println(now() + " RECV  ← 1 " + toHex(new byte[]{head}));
+
+
+            int garbage = socket.getInputStream().available();
+            if (garbage > 0) {
+                byte[] residual = new byte[Math.min(garbage, 64)];
+                in.read(residual);
+                System.err.println(now() + " ⚠️ GARBAGE DETECTED: " + toHex(residual));
+                throw new IOException("Socket read desync detected, residual bytes found: " + garbage);
+            }
+
             return new SimpleResponse(head == 0x01);
         }
     }
