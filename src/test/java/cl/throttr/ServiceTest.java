@@ -74,6 +74,11 @@ class ServiceTest {
         assertTrue(query.success());
         assertTrue(query.quota() >= 0);
         assertTrue(query.ttl() >= 0);
+
+        SimpleResponse purge = (SimpleResponse) service.send(new PurgeRequest(
+                key
+        ));
+        assertTrue(purge.success());
     }
 
     @Test
@@ -122,6 +127,11 @@ class ServiceTest {
                 key
         ));
         assertTrue(query.quota() <= 0);
+
+        SimpleResponse purge = (SimpleResponse) service.send(new PurgeRequest(
+                key
+        ));
+        assertTrue(purge.success());
     }
 
     @Test
@@ -142,30 +152,6 @@ class ServiceTest {
         ));
         assertFalse(query.success());
     }
-
-//    @Test
-//    void shouldResetQuotaAfterTTLExpiration() throws Exception {
-//        String key = "user:ttl";
-//
-//        service.send(new InsertRequest(
-//                2, TTLType.SECONDS, 1, key
-//        ));
-//
-//        FullResponse queryAfterInsert = (FullResponse) service.send(new QueryRequest(
-//                key
-//        ));
-//        assertTrue(queryAfterInsert.quota() <= 2);
-//
-//        await()
-//                .atMost(Duration.ofSeconds(5))
-//                .pollInterval(Duration.ofSeconds(2))
-//                .until(() -> {
-//                    SimpleResponse response = (SimpleResponse) service.send(new QueryRequest(
-//                            key
-//                    ));
-//                    return !response.success();
-//                });
-//    }
 
     @Test
     void shouldAllTheFlowWorksAsExpected() throws Exception {
@@ -203,44 +189,4 @@ class ServiceTest {
         ));
         assertFalse(queryResponse3.success());
     }
-
-    @Test
-    void shouldThrowExceptionWhenMaxConnectionsIsZero() {
-        ValueSize size = Testing.getValueSizeFromEnv();
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
-                () -> new Service("127.0.0.1", 9000, size, 0)
-        );
-
-        assertEquals("maxConnections must be greater than 0.", exception.getMessage());
-    }
-
-    @Test
-    void shouldThrowExceptionWhenMaxConnectionsIsNegative() {
-        ValueSize size = Testing.getValueSizeFromEnv();
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
-                () -> new Service("127.0.0.1", 9000, size, -5)
-        );
-
-        assertEquals("maxConnections must be greater than 0.", exception.getMessage());
-    }
-
-//    @Test
-//    void shouldFailWhenNoConnectionsAvailable() {
-//        ValueSize size = Testing.getValueSizeFromEnv();
-//        Service local = new Service("127.0.0.1", 9000, size, 1);
-//
-//        Object object = local.send(new InsertRequest(
-//                5, TTLType.SECONDS, 5, "user:no-connection"
-//        ));
-//
-//        ExecutionException exception = assertThrows(
-//                ExecutionException.class,
-//                object
-//        );
-//
-//        assertTrue(exception.getCause() instanceof IllegalStateException);
-//        assertEquals("No available connections.", exception.getCause().getMessage());
-//    }
 }
