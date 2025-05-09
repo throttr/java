@@ -90,15 +90,12 @@ public class Service implements AutoCloseable {
      * Send
      *
      * @param request Requests
-     * @return CompletableFuture<Object>
+     * @return Object
      */
-    public CompletableFuture<Object> send(Object request) {
+    public Object send(Object request) throws IOException {
         if (connections.isEmpty()) {
-            CompletableFuture<Object> future = new CompletableFuture<>();
-            future.completeExceptionally(new IllegalStateException("No available connections."));
-            return future;
+            throw new IllegalStateException("There are no available connections.");
         }
-
         int index = roundRobinIndex.getAndUpdate(i -> (i + 1) % connections.size());
         Connection conn = connections.get(index);
         return conn.send(request);

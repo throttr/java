@@ -20,8 +20,8 @@ import cl.throttr.enums.ValueSize;
 import cl.throttr.requests.*;
 import cl.throttr.responses.FullResponse;
 import cl.throttr.responses.SimpleResponse;
-import cl.throttr.utils.Binary;
 
+import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -39,145 +39,67 @@ import java.util.concurrent.TimeUnit;
  */
 public class Connection implements AutoCloseable {
     private final Socket socket;
-    private final Queue<PendingRequest> queue = new LinkedList<>();
-    private boolean busy = false;
     private final ValueSize size;
-    private volatile boolean closed = false;
-    private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final OutputStream out;
-    private final InputStream in;
+    private final DataInputStream in;
 
     public Connection(String host, int port, ValueSize size) throws IOException {
         this.socket = new Socket(host, port);
         this.socket.setTcpNoDelay(true);
         this.socket.setSoTimeout(5000);
         this.out = socket.getOutputStream();
-        this.in = socket.getInputStream();
+        this.in = new DataInputStream(socket.getInputStream());
         this.size = size;
     }
 
-    public CompletableFuture<Object> send(Object request) {
-        if (closed || socket.isClosed()) {
-            CompletableFuture<Object> failed = new CompletableFuture<>();
-            failed.completeExceptionally(new IOException("Socket is already closed"));
-            return failed;
+    public Object send(Object request) throws IOException {
+        if (socket.isClosed()) {
+            throw new IOException("Socket is already closed");
         }
 
         byte[] buffer;
         boolean expectFullResponse;
-        RequestType requestType;
 
         switch (request) {
             case InsertRequest insert -> {
                 buffer = insert.toBytes(size);
                 expectFullResponse = false;
-                requestType = RequestType.INSERT;
             }
             case QueryRequest query -> {
                 buffer = query.toBytes();
                 expectFullResponse = true;
-                requestType = RequestType.QUERY;
             }
             case UpdateRequest update -> {
                 buffer = update.toBytes(size);
                 expectFullResponse = false;
-                requestType = RequestType.UPDATE;
             }
             case PurgeRequest purge -> {
                 buffer = purge.toBytes();
                 expectFullResponse = false;
-                requestType = RequestType.PURGE;
             }
             default -> throw new IllegalArgumentException("Unsupported request type: " + request.getClass());
         }
 
-        CompletableFuture<Object> future = new CompletableFuture<>();
-        synchronized (queue) {
-            queue.add(new PendingRequest(buffer, future, expectFullResponse, requestType));
-            if (!busy) {
-                busy = true;
-                executor.submit(this::processQueue);
-            }
-        }
-        return future;
-    }
+        out.write(buffer);
+        out.flush();
 
-    private void processQueue() {
-        while (true) {
-            PendingRequest pending;
+        byte head = in.readByte();
 
-            synchronized (queue) {
-                if (queue.isEmpty()) {
-                    busy = false;
-                    return;
-                }
-                pending = queue.poll();
-            }
-
-            try {
-                out.write(pending.getBuffer());
-                out.flush();
-
-                Object response;
-
-                byte[] head = new byte[0];
-                while(head.length != 1) {
-                    head = in.readNBytes(1);
-                }
-
-                if (pending.getRequestType() == RequestType.QUERY) {
-                    if (head[0] == 0x01) {
-                        int expected = size.getValue() * 2 + 1;
-
-                        byte[] merged = new byte[expected];
-                        int offset = 0;
-
-                        while (offset < expected) {
-                            byte[] chunk = in.readNBytes(expected - offset);
-                            if (chunk.length == 0) {
-                                continue; // sigue intentando hasta que lea algo útil
-                            }
-                            System.arraycopy(chunk, 0, merged, offset, chunk.length);
-                            offset += chunk.length;
-                        }
-
-                        byte[] full = new byte[1 + expected];
-                        full[0] = head[0];
-                        System.arraycopy(merged, 0, full, 1, expected);
-                        response = FullResponse.fromBytes(full, size);
-                    } else {
-                        response = new SimpleResponse(false);
-                    }
-                } else {
-                    response = new SimpleResponse(head[0] == 0x01);
-                }
-
-                pending.getFuture().complete(response);
-            } catch (IOException e) {
-                pending.getFuture().completeExceptionally(e);
-
-                synchronized (queue) {
-                    while (!queue.isEmpty()) {
-                        PendingRequest next = queue.poll();
-                        next.getFuture().completeExceptionally(new IOException("Connection aborted due to previous failure"));
-                    }
-                    busy = false;
-                }
-            }
+        if (expectFullResponse && head == 0x01) {
+            int expected = size.getValue() * 2 + 1;
+            byte[] merged = new byte[expected];
+            in.readFully(merged);
+            byte[] full = new byte[1 + expected];
+            full[0] = head;
+            System.arraycopy(merged, 0, full, 1, expected);
+            return FullResponse.fromBytes(full, size);
+        } else {
+            return new SimpleResponse(head == 0x01);
         }
     }
 
     @Override
     public void close() throws IOException {
-        executor.shutdown();
-        try {
-            if (!executor.awaitTermination(2, TimeUnit.SECONDS)) {
-                executor.shutdownNow();
-            }
-        } catch (InterruptedException ignored) {
-            Thread.currentThread().interrupt();
-        }
         socket.close();
-        closed = true;
     }
 }
