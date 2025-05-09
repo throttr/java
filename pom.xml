@@ -110,10 +110,11 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.2.5</version>
                 <configuration>
-                    <forkCount>1</forkCount>
-                    <reuseForks>true</reuseForks>
                     <parallel>none</parallel>
                     <argLine>@{argLine} --enable-native-access=ALL-UNNAMED</argLine>
+                    <systemPropertyVariables>
+                        <junit.jupiter.execution.parallel.enabled>false</junit.jupiter.execution.parallel.enabled>
+                    </systemPropertyVariables>
                 </configuration>
             </plugin>
         </plugins>
