@@ -78,7 +78,7 @@ public class Service implements AutoCloseable {
      *
      * @throws IOException Sockets can fail
      */
-    public void connect() throws IOException, InterruptedException {
+    public void connect() throws IOException {
         for (int i = 0; i < maxConnections; i++) {
             Connection conn = new Connection(host, port, size);
             connections.add(conn);

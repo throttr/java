@@ -81,8 +81,6 @@ public class Connection implements AutoCloseable {
             default -> throw new IllegalArgumentException("Unsupported request type: " + request.getClass());
         }
 
-        System.out.println(now()+ " [" + System.identityHashCode(this) + "] [" + Thread.currentThread().getName() + "] SEND  → " + toHex(buffer));
-
         out.write(buffer);
         out.flush();
 
@@ -107,22 +105,16 @@ public class Connection implements AutoCloseable {
             full[0] = (byte) head;
             System.arraycopy(merged, 0, full, 1, expected);
 
-            System.out.println(now() + " [" + System.identityHashCode(this) + "] [" + Thread.currentThread().getName() + "] RECV  ← 2 " + toHex(full));
-
             if (in.available() > 0) {
                 byte[] residual = new byte[Math.min(in.available(), 64)];
                 int read = in.read(residual);
-                System.err.println(now() + " [" + System.identityHashCode(this) + "] [" + Thread.currentThread().getName() + "] ⚠️ GARBAGE DETECTED: " + toHex(residual) + " INT: " + read);
             }
 
             return FullResponse.fromBytes(full, size);
         } else {
-            System.out.println(now() + " [" + System.identityHashCode(this) + "] [" + Thread.currentThread().getName() + "] RECV  ← 1 " + toHex(new byte[]{(byte) head}));
-
             if (in.available() > 0) {
                 byte[] residual = new byte[Math.min(in.available(), 64)];
                 int read = in.read(residual);
-                System.err.println(now() + " [" + System.identityHashCode(this) + "] [" + Thread.currentThread().getName() + "] ⚠️ GARBAGE DETECTED: " + toHex(residual) + " INT: " + read);
             }
 
             return new SimpleResponse(head == 0x01);
