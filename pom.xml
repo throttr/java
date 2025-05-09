@@ -107,13 +107,6 @@
                         </goals>
                         <phase>initialize</phase>
                     </execution>
-                    <execution>
-                        <id>report</id>
-                        <phase>verify</phase>
-                        <goals>
-                            <goal>report</goal>
-                        </goals>
-                    </execution>
                 </executions>
             </plugin>
         </plugins>
