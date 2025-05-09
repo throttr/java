@@ -34,6 +34,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import static cl.throttr.utils.Binary.toHex;
+
 /**
  * Connection
  */
@@ -80,9 +82,10 @@ public class Connection implements AutoCloseable {
             default -> throw new IllegalArgumentException("Unsupported request type: " + request.getClass());
         }
 
+        System.out.println("SEND  → " + toHex(buffer));
+
         out.write(buffer);
         out.flush();
-
 
 
         byte head = in.readByte();
@@ -94,8 +97,10 @@ public class Connection implements AutoCloseable {
             byte[] full = new byte[1 + expected];
             full[0] = head;
             System.arraycopy(merged, 0, full, 1, expected);
+            System.out.println("RECV  ← 2 " + toHex(full));
             return FullResponse.fromBytes(full, size);
         } else {
+            System.out.println("RECV  ← 1 " + toHex(new byte[]{head}));
             return new SimpleResponse(head == 0x01);
         }
     }
