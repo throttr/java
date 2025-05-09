@@ -98,6 +98,11 @@ class ServiceTest {
                 key
         ));
         assertTrue(query.quota() <= 2);
+
+        SimpleResponse purge = (SimpleResponse) service.send(new PurgeRequest(
+                key
+        ));
+        assertTrue(purge.success());
     }
 
     @Test
