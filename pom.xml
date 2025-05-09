@@ -82,8 +82,10 @@
                 <version>3.2.5</version>
                 <configuration>
                     <parallel>none</parallel>
-                    <reuseForks>false</reuseForks>
                     <argLine>--enable-native-access=ALL-UNNAMED</argLine>
+                    <systemPropertyVariables>
+                        <junit.jupiter.execution.parallel.enabled>false</junit.jupiter.execution.parallel.enabled>
+                    </systemPropertyVariables>
                 </configuration>
             </plugin>
             <plugin>

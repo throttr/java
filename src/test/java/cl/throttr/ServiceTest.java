@@ -27,13 +27,8 @@ import cl.throttr.responses.FullResponse;
 import cl.throttr.responses.SimpleResponse;
 import cl.throttr.utils.Testing;
 import org.junit.jupiter.api.*;
-import org.junit.jupiter.api.parallel.Execution;
-import org.junit.jupiter.api.parallel.ExecutionMode;
-
-import static org.awaitility.Awaitility.await;
 
 import java.io.IOException;
-import java.time.Duration;
 
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -41,19 +36,20 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * ServiceTest
  */
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ServiceTest {
 
-    static private Service service;
+    private Service service;
 
-    @BeforeAll
-    static void setUp() throws Exception {
+    @BeforeEach
+    void setUp() throws Exception {
         ValueSize size = Testing.getValueSizeFromEnv();
         service = new Service("127.0.0.1", 9000, size,1);
         service.connect();
     }
 
-    @AfterAll
-    static void shutdown() throws IOException {
+    @AfterEach
+    void shutdown() throws IOException {
         service.close();
     }
 
