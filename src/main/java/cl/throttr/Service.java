@@ -79,7 +79,7 @@ public class Service implements AutoCloseable {
      *
      * @throws IOException Sockets can fail
      */
-    public void connect() throws IOException {
+    public void connect() throws IOException, InterruptedException {
         for (int i = 0; i < maxConnections; i++) {
             Connection conn = new Connection(host, port, size);
             connections.add(conn);
@@ -99,7 +99,11 @@ public class Service implements AutoCloseable {
         int index = roundRobinIndex.getAndUpdate(i -> (i + 1) % connections.size());
         Connection conn = connections.get(index);
         synchronized (conn) {
-            return conn.send(request);
+            try {
+                return conn.send(request);
+            } catch (Exception e) {
+                throw new IOException("Unexpected error in connection send", e);
+            }
         }
     }
 
@@ -109,11 +113,7 @@ public class Service implements AutoCloseable {
     @Override
     public void close() {
         for (Connection conn : connections) {
-            try {
-                conn.close();
-            } catch (IOException e) {
-                // Silent close
-            }
+            conn.close();
         }
         connections.clear();
     }
