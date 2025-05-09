@@ -23,6 +23,7 @@ import cl.throttr.responses.SimpleResponse;
 
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
 
@@ -38,7 +39,7 @@ public class Connection implements AutoCloseable {
     private final Socket socket;
     private final ValueSize size;
     private final OutputStream out;
-    private final DataInputStream in;
+    private final InputStream in;
 
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss.SSS");
 
@@ -51,7 +52,7 @@ public class Connection implements AutoCloseable {
         this.socket.setTcpNoDelay(true);
         this.socket.setSoTimeout(30000);
         this.out = socket.getOutputStream();
-        this.in = new DataInputStream(socket.getInputStream());
+        this.in = socket.getInputStream();
         this.size = size;
     }
 
@@ -88,26 +89,16 @@ public class Connection implements AutoCloseable {
         out.write(buffer);
         out.flush();
 
-
-        byte head = in.readByte();
+        int head = in.read();
+        if (head == -1) {
+            throw new IOException("Connection closed while reading response head.");
+        }
 
         if (expectFullResponse && head == 0x01) {
-
             int expected = size.getValue() * 2 + 1;
             byte[] merged = new byte[expected];
-
-            for (int offset = 0; offset < expected; ) {
-                int available = socket.getInputStream().available();
-                if (available == 0) {
-                    try {
-                        Thread.sleep(1); // Esperamos 1 ms para que llegue el resto
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        throw new IOException("Interrupted while waiting for response.");
-                    }
-                    continue;
-                }
-
+            int offset = 0;
+            while (offset < expected) {
                 int read = in.read(merged, offset, expected - offset);
                 if (read == -1) {
                     throw new IOException("Unexpected EOF while reading full response.");
@@ -115,31 +106,28 @@ public class Connection implements AutoCloseable {
                 offset += read;
             }
 
-//            in.readFully(merged);
             byte[] full = new byte[1 + expected];
-            full[0] = head;
+            full[0] = (byte) head;
             System.arraycopy(merged, 0, full, 1, expected);
-            System.out.println(now()+ " [" + System.identityHashCode(this) + "] [" + Thread.currentThread().getName() + "] RECV  ← 2 " + toHex(full));
 
-            int garbage = socket.getInputStream().available();
-            if (garbage > 0) {
-                byte[] residual = new byte[Math.min(garbage, 64)];
-                in.read(residual);
-                System.err.println(now()+ " [" + System.identityHashCode(this) + "] [" + Thread.currentThread().getName() + "] ⚠️ GARBAGE DETECTED: " + toHex(residual));
-                throw new IOException("Socket read desync detected, residual bytes found: " + garbage);
+            System.out.println(now() + " [" + System.identityHashCode(this) + "] [" + Thread.currentThread().getName() + "] RECV  ← 2 " + toHex(full));
+
+            if (in.available() > 0) {
+                byte[] residual = new byte[Math.min(in.available(), 64)];
+                int read = in.read(residual);
+                System.err.println(now() + " [" + System.identityHashCode(this) + "] [" + Thread.currentThread().getName() + "] ⚠️ GARBAGE DETECTED: " + toHex(residual));
+                throw new IOException("Socket read desync detected, residual bytes found: " + read);
             }
 
             return FullResponse.fromBytes(full, size);
         } else {
-            System.out.println(now()+ " [" + System.identityHashCode(this) + "] [" + Thread.currentThread().getName() + "] RECV  ← 1 " + toHex(new byte[]{head}));
+            System.out.println(now() + " [" + System.identityHashCode(this) + "] [" + Thread.currentThread().getName() + "] RECV  ← 1 " + toHex(new byte[]{(byte) head}));
 
-
-            int garbage = socket.getInputStream().available();
-            if (garbage > 0) {
-                byte[] residual = new byte[Math.min(garbage, 64)];
-                in.read(residual);
-                System.err.println(now()+ " [" + System.identityHashCode(this) + "] [" + Thread.currentThread().getName() + "] ⚠️ GARBAGE DETECTED: " + toHex(residual));
-                throw new IOException("Socket read desync detected, residual bytes found: " + garbage);
+            if (in.available() > 0) {
+                byte[] residual = new byte[Math.min(in.available(), 64)];
+                int read = in.read(residual);
+                System.err.println(now() + " [" + System.identityHashCode(this) + "] [" + Thread.currentThread().getName() + "] ⚠️ GARBAGE DETECTED: " + toHex(residual));
+                throw new IOException("Socket read desync detected, residual bytes found: " + read);
             }
 
             return new SimpleResponse(head == 0x01);
