@@ -45,7 +45,7 @@ jobs:
 
       - name: Build and test
         if: ${{ github.ref_type != 'tag' }}
-        run: mvn clean test jacoco:report
+        run: mvn clean verify
         env:
           THROTTR_SIZE: ${{ matrix.size }}
 
