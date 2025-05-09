@@ -98,7 +98,9 @@ public class Service implements AutoCloseable {
         }
         int index = roundRobinIndex.getAndUpdate(i -> (i + 1) % connections.size());
         Connection conn = connections.get(index);
-        return conn.send(request);
+        synchronized (conn) {
+            return conn.send(request);
+        }
     }
 
     /**
