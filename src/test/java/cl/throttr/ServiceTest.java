@@ -148,6 +148,12 @@ class ServiceTest {
         ));
         assertTrue(purge.success());
 
+        try {
+            Thread.sleep(250);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
         SimpleResponse query = (SimpleResponse) service.send(new QueryRequest(
                 key
         ));
@@ -184,6 +190,12 @@ class ServiceTest {
                 key
         ));
         assertTrue(purgeResponse.success());
+
+        try {
+            Thread.sleep(250);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
 
         SimpleResponse queryResponse3 = (SimpleResponse) service.send(new QueryRequest(
                 key
