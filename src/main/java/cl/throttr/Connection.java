@@ -83,7 +83,7 @@ public class Connection implements AutoCloseable {
             default -> throw new IllegalArgumentException("Unsupported request type: " + request.getClass());
         }
 
-        System.out.println(now() + " SEND  → " + toHex(buffer));
+        System.out.println(now()+ " [" + System.identityHashCode(this) + "] [" + Thread.currentThread().getName() + "] SEND  → " + toHex(buffer));
 
         out.write(buffer);
         out.flush();
@@ -119,26 +119,26 @@ public class Connection implements AutoCloseable {
             byte[] full = new byte[1 + expected];
             full[0] = head;
             System.arraycopy(merged, 0, full, 1, expected);
-            System.out.println(now() + " RECV  ← 2 " + toHex(full));
+            System.out.println(now()+ " [" + System.identityHashCode(this) + "] [" + Thread.currentThread().getName() + "] RECV  ← 2 " + toHex(full));
 
             int garbage = socket.getInputStream().available();
             if (garbage > 0) {
                 byte[] residual = new byte[Math.min(garbage, 64)];
                 in.read(residual);
-                System.err.println(now() + " ⚠️ GARBAGE DETECTED: " + toHex(residual));
+                System.err.println(now()+ " [" + System.identityHashCode(this) + "] [" + Thread.currentThread().getName() + "] ⚠️ GARBAGE DETECTED: " + toHex(residual));
                 throw new IOException("Socket read desync detected, residual bytes found: " + garbage);
             }
 
             return FullResponse.fromBytes(full, size);
         } else {
-            System.out.println(now() + " RECV  ← 1 " + toHex(new byte[]{head}));
+            System.out.println(now()+ " [" + System.identityHashCode(this) + "] [" + Thread.currentThread().getName() + "] RECV  ← 1 " + toHex(new byte[]{head}));
 
 
             int garbage = socket.getInputStream().available();
             if (garbage > 0) {
                 byte[] residual = new byte[Math.min(garbage, 64)];
                 in.read(residual);
-                System.err.println(now() + " ⚠️ GARBAGE DETECTED: " + toHex(residual));
+                System.err.println(now()+ " [" + System.identityHashCode(this) + "] [" + Thread.currentThread().getName() + "] ⚠️ GARBAGE DETECTED: " + toHex(residual));
                 throw new IOException("Socket read desync detected, residual bytes found: " + garbage);
             }
 
