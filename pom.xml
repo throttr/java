@@ -10,7 +10,7 @@
     <packaging>jar</packaging>
 
     <name>Throttr SDK Java</name>
-    <description>Throttr Java SDK for ultra-fast rate limiting.</description>
+    <description>Throttr SDK for Java to enable ultra-fast rate limiting.</description>
     <url>https://github.com/throttr/java</url>
 
     <licenses>
