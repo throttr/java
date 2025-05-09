@@ -25,11 +25,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
 
-import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
-import static cl.throttr.utils.Binary.toHex;
-
-
 /**
  * Connection
  */
@@ -38,12 +33,6 @@ public class Connection implements AutoCloseable {
     private final ValueSize size;
     private final OutputStream out;
     private final InputStream in;
-
-    private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss.SSS");
-
-    private String now() {
-        return LocalTime.now().format(TIME_FORMATTER);
-    }
 
     public Connection(String host, int port, ValueSize size) throws IOException {
         this.socket = new Socket(host, port);
@@ -107,14 +96,14 @@ public class Connection implements AutoCloseable {
 
             if (in.available() > 0) {
                 byte[] residual = new byte[Math.min(in.available(), 64)];
-                int read = in.read(residual);
+                in.read(residual);
             }
 
             return FullResponse.fromBytes(full, size);
         } else {
             if (in.available() > 0) {
                 byte[] residual = new byte[Math.min(in.available(), 64)];
-                int read = in.read(residual);
+                in.read(residual);
             }
 
             return new SimpleResponse(head == 0x01);
