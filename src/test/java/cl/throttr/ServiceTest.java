@@ -40,7 +40,6 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * ServiceTest
  */
-@Execution(ExecutionMode.SAME_THREAD)
 class ServiceTest {
 
     static private Service service;
