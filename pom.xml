@@ -84,9 +84,6 @@
                     <parallel>none</parallel>
                     <reuseForks>false</reuseForks>
                     <argLine>--enable-native-access=ALL-UNNAMED</argLine>
-                    <environmentVariables>
-                        <THROTTR_SIZE>${env.THROTTR_SIZE}</THROTTR_SIZE>
-                    </environmentVariables>
                 </configuration>
             </plugin>
             <plugin>
