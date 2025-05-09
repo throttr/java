@@ -15,13 +15,11 @@
 
 package cl.throttr;
 
-import cl.throttr.enums.RequestType;
 import cl.throttr.enums.ValueSize;
 import cl.throttr.requests.*;
 import cl.throttr.responses.FullResponse;
 import cl.throttr.responses.SimpleResponse;
 
-import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;

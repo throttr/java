@@ -13,193 +13,113 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+
 package cl.throttr;
 
-import cl.throttr.enums.AttributeType;
-import cl.throttr.enums.ChangeType;
-import cl.throttr.enums.TTLType;
-import cl.throttr.enums.ValueSize;
-import cl.throttr.requests.InsertRequest;
-import cl.throttr.requests.PurgeRequest;
-import cl.throttr.requests.QueryRequest;
-import cl.throttr.requests.UpdateRequest;
-import cl.throttr.responses.FullResponse;
-import cl.throttr.responses.SimpleResponse;
+import cl.throttr.enums.*;
+import cl.throttr.requests.*;
+import cl.throttr.responses.*;
 import cl.throttr.utils.Testing;
+import org.awaitility.Awaitility;
 import org.junit.jupiter.api.*;
 
 import java.io.IOException;
-
+import java.time.Duration;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * ServiceTest
- */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class ServiceTest {
+class ServiceSuperTest {
 
     private Service service;
 
-    @BeforeEach
+    @BeforeAll
     void setUp() throws Exception {
         ValueSize size = Testing.getValueSizeFromEnv();
-        service = new Service("127.0.0.1", 9000, size,1);
+        service = new Service("127.0.0.1", 9000, size, 1);
         service.connect();
     }
 
-    @AfterEach
+    @AfterAll
     void shutdown() throws IOException {
         service.close();
     }
 
     @Test
-    void shouldInsertAndQuerySuccessfully() throws Exception {
-        String key = java.util.UUID.randomUUID().toString();
+    void shouldPerformFullFlowAsExpected() throws Exception {
+        String key = UUID.randomUUID().toString();
 
-        SimpleResponse insert = (SimpleResponse) service.send(new InsertRequest(
-                5, TTLType.SECONDS, 5, key
-        ));
-
+        // INSERT with quota=7 and ttl=60
+        SimpleResponse insert = (SimpleResponse) service.send(new InsertRequest(7, TTLType.SECONDS, 60, key));
         assertTrue(insert.success());
 
-        FullResponse query = (FullResponse) service.send(new QueryRequest(
-                key
-        ));
+        // QUERY and validate
+        FullResponse q1 = (FullResponse) service.send(new QueryRequest(key));
+        assertTrue(q1.success());
+        assertEquals(7, q1.quota());
+        assertEquals(TTLType.SECONDS, q1.ttlType());
+        assertTrue(q1.ttl() > 0 && q1.ttl() < 60);
 
-        assertTrue(query.success());
-        assertTrue(query.quota() >= 0);
-        assertTrue(query.ttl() >= 0);
+        // UPDATE: DECREASE quota by 7
+        SimpleResponse dec1 = (SimpleResponse) service.send(new UpdateRequest(AttributeType.QUOTA, ChangeType.DECREASE, 7, key));
+        assertTrue(dec1.success());
 
-        SimpleResponse purge = (SimpleResponse) service.send(new PurgeRequest(
-                key
-        ));
-        assertTrue(purge.success());
-    }
+        // UPDATE: DECREASE quota again -> should fail
+        SimpleResponse dec2 = (SimpleResponse) service.send(new UpdateRequest(AttributeType.QUOTA, ChangeType.DECREASE, 7, key));
+        assertFalse(dec2.success());
 
-    @Test
-    void shouldConsumeQuotaViaInsertUsageAndDenyAfterExhausted() throws Exception {
-        String key = java.util.UUID.randomUUID().toString();
+        // QUERY -> quota should be 0
+        FullResponse q2 = (FullResponse) service.send(new QueryRequest(key));
+        assertTrue(q2.success());
+        assertEquals(0, q2.quota());
 
-        service.send(new InsertRequest(
-                2, TTLType.SECONDS, 5, key
-        ));
+        // UPDATE: PATCH quota to 10
+        SimpleResponse patchQuota = (SimpleResponse) service.send(new UpdateRequest(AttributeType.QUOTA, ChangeType.PATCH, 10, key));
+        assertTrue(patchQuota.success());
 
-        SimpleResponse first = (SimpleResponse) service.send(new InsertRequest(
-                0, TTLType.SECONDS, 5, key
-        ));
-        assertFalse(first.success());
+        // QUERY -> quota should be 10
+        FullResponse q3 = (FullResponse) service.send(new QueryRequest(key));
+        assertEquals(10, q3.quota());
 
-        FullResponse query = (FullResponse) service.send(new QueryRequest(
-                key
-        ));
-        assertTrue(query.quota() <= 2);
+        // UPDATE: INCREASE quota by 20 -> should be 30
+        SimpleResponse incQuota = (SimpleResponse) service.send(new UpdateRequest(AttributeType.QUOTA, ChangeType.INCREASE, 20, key));
+        assertTrue(incQuota.success());
 
-        SimpleResponse purge = (SimpleResponse) service.send(new PurgeRequest(
-                key
-        ));
-        assertTrue(purge.success());
-    }
+        // QUERY -> quota should be 30
+        FullResponse q4 = (FullResponse) service.send(new QueryRequest(key));
+        assertEquals(30, q4.quota());
 
-    @Test
-    void shouldConsumeQuotaViaUpdateDecreaseAndReachZero() throws Exception {
-        String key = java.util.UUID.randomUUID().toString();
+        // UPDATE: INCREASE TTL by 60 -> ttl > 60 and < 120
+        SimpleResponse incTtl = (SimpleResponse) service.send(new UpdateRequest(AttributeType.TTL, ChangeType.INCREASE, 60, key));
+        assertTrue(incTtl.success());
 
-        service.send(new InsertRequest(
-                2, TTLType.SECONDS, 5, key
-        ));
+        FullResponse q5 = (FullResponse) service.send(new QueryRequest(key));
+        assertTrue(q5.ttl() > 60 && q5.ttl() < 120);
 
-        SimpleResponse firstUpdate = (SimpleResponse) service.send(new UpdateRequest(
-                AttributeType.QUOTA, ChangeType.DECREASE, 1, key
-        ));
-        assertTrue(firstUpdate.success());
+        // UPDATE: DECREASE TTL by 60 -> ttl < 60
+        SimpleResponse decTtl = (SimpleResponse) service.send(new UpdateRequest(AttributeType.TTL, ChangeType.DECREASE, 60, key));
+        assertTrue(decTtl.success());
 
-        SimpleResponse secondUpdate = (SimpleResponse) service.send(new UpdateRequest(
-                AttributeType.QUOTA, ChangeType.DECREASE, 1, key
-        ));
-        assertTrue(secondUpdate.success());
+        FullResponse q6 = (FullResponse) service.send(new QueryRequest(key));
+        assertTrue(q6.ttl() > 0 && q6.ttl() < 60);
 
-        SimpleResponse thirdUpdate = (SimpleResponse) service.send(new UpdateRequest(
-                AttributeType.QUOTA, ChangeType.DECREASE, 1, key
-        ));
-        assertFalse(thirdUpdate.success());
+        // UPDATE: PATCH TTL to 90 -> ttl ~90
+        SimpleResponse patchTtl = (SimpleResponse) service.send(new UpdateRequest(AttributeType.TTL, ChangeType.PATCH, 90, key));
+        assertTrue(patchTtl.success());
 
-        FullResponse query = (FullResponse) service.send(new QueryRequest(
-                key
-        ));
-        assertTrue(query.quota() <= 0);
+        FullResponse q7 = (FullResponse) service.send(new QueryRequest(key));
+        assertTrue(q7.ttl() > 60 && q7.ttl() <= 90);
 
-        SimpleResponse purge = (SimpleResponse) service.send(new PurgeRequest(
-                key
-        ));
-        assertTrue(purge.success());
-    }
-
-    @Test
-    void shouldPurgeAndFailToQueryAfterwards() throws Exception {
-        String key = java.util.UUID.randomUUID().toString();
-
-        service.send(new InsertRequest(
-                1, TTLType.SECONDS, 5, key
-        ));
-
-        SimpleResponse purge = (SimpleResponse) service.send(new PurgeRequest(
-                key
-        ));
+        // PURGE
+        SimpleResponse purge = (SimpleResponse) service.send(new PurgeRequest(key));
         assertTrue(purge.success());
 
-        try {
-            Thread.sleep(250);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
+        // RE-PURGE -> should fail
+        SimpleResponse repurge = (SimpleResponse) service.send(new PurgeRequest(key));
+        assertFalse(repurge.success());
 
-        SimpleResponse query = (SimpleResponse) service.send(new QueryRequest(
-                key
-        ));
-        assertFalse(query.success());
-    }
-
-    @Test
-    void shouldAllTheFlowWorksAsExpected() throws Exception {
-        String key = java.util.UUID.randomUUID().toString();
-
-        SimpleResponse insertResponse = (SimpleResponse) service.send(new InsertRequest(
-                10, TTLType.SECONDS, 30, key
-        ));
-        assertTrue(insertResponse.success());
-
-        FullResponse queryResponse1 = (FullResponse) service.send(new QueryRequest(
-                key
-        ));
-        assertTrue(queryResponse1.success());
-        assertEquals(10, queryResponse1.quota());
-
-        SimpleResponse updateResponse = (SimpleResponse) service.send(new UpdateRequest(
-                AttributeType.QUOTA, ChangeType.DECREASE, 5, key
-        ));
-        assertTrue(updateResponse.success());
-
-        FullResponse queryResponse2 = (FullResponse) service.send(new QueryRequest(
-                key
-        ));
-        assertTrue(queryResponse2.success());
-        assertEquals(5, queryResponse2.quota());
-
-        SimpleResponse purgeResponse = (SimpleResponse) service.send(new PurgeRequest(
-                key
-        ));
-        assertTrue(purgeResponse.success());
-
-        try {
-            Thread.sleep(250);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-
-        SimpleResponse queryResponse3 = (SimpleResponse) service.send(new QueryRequest(
-                key
-        ));
-        assertFalse(queryResponse3.success());
+        // QUERY -> should fail
+        Awaitility.await().atMost(Duration.ofSeconds(2)).until(() -> !((SimpleResponse) service.send(new QueryRequest(key))).success());
     }
 }
