@@ -12,9 +12,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
-
 package cl.throttr;
-
 
 import cl.throttr.enums.RequestType;
 import cl.throttr.enums.ValueSize;
@@ -30,12 +28,11 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.timeout.ReadTimeoutHandler;
 
-import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.Queue;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
-
-import static cl.throttr.utils.Binary.toHex;
 
 public class Connection implements AutoCloseable {
     private final String host;
@@ -43,7 +40,17 @@ public class Connection implements AutoCloseable {
     private final ValueSize size;
     private final EventLoopGroup group;
     private Channel channel;
-    private final LinkedBlockingQueue<byte[]> responseQueue = new LinkedBlockingQueue<>();
+    private final Queue<PendingRequest> pending = new ConcurrentLinkedQueue<>();
+
+    private static class PendingRequest {
+        final boolean expectFull;
+        final CompletableFuture<Object> future;
+
+        PendingRequest(boolean expectFull, CompletableFuture<Object> future) {
+            this.expectFull = expectFull;
+            this.future = future;
+        }
+    }
 
     public Connection(String host, int port, ValueSize size) throws InterruptedException {
         this.host = host;
@@ -59,31 +66,28 @@ public class Connection implements AutoCloseable {
                     @Override
                     protected void initChannel(SocketChannel ch) {
                         ch.pipeline().addLast(new ReadTimeoutHandler(30));
-                        ch.pipeline().addLast(new ChannelInboundHandlerAdapter() {
+                        ch.pipeline().addLast(new SimpleChannelInboundHandler<ByteBuf>() {
                             @Override
-                            public void channelRead(ChannelHandlerContext ctx, Object msg) {
-                                ByteBuf buf = (ByteBuf) msg;
+                            protected void channelRead0(ChannelHandlerContext ctx, ByteBuf msg) {
+                                byte[] data = new byte[msg.readableBytes()];
+                                msg.readBytes(data);
+
+                                PendingRequest req = pending.poll();
+                                if (req == null) {
+                                    System.err.println("⚠️ Netty error: unexpected response without pending request");
+                                    return;
+                                }
                                 try {
-                                    byte[] data = new byte[buf.readableBytes()];
-                                    buf.readBytes(data);
-                                    responseQueue.offer(data);
-                                } finally {
-                                    buf.release();
+                                    if (req.expectFull && data[0] == 0x01) {
+                                        req.future.complete(FullResponse.fromBytes(data, size));
+                                    } else {
+                                        req.future.complete(new SimpleResponse(data[0] == 0x01));
+                                    }
+                                } catch (Throwable t) {
+                                    req.future.completeExceptionally(t);
                                 }
                             }
-
-                            @Override
-                            public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-                                System.err.println("⚠️ Netty error: " + cause.getMessage());
-                                ctx.close();
-                            }
                         });
-                    }
-
-                    @Override
-                    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-                        System.err.println("Netty handler exception: " + cause.getMessage());
-                        ctx.close();
                     }
                 });
 
@@ -94,49 +98,31 @@ public class Connection implements AutoCloseable {
     public Object send(Object request) throws Exception {
         byte[] buffer;
         boolean expectFull;
-        RequestType type;
 
         switch (request) {
             case InsertRequest insert -> {
                 buffer = insert.toBytes(size);
                 expectFull = false;
-                type = RequestType.INSERT;
             }
             case QueryRequest query -> {
                 buffer = query.toBytes();
                 expectFull = true;
-                type = RequestType.QUERY;
             }
             case UpdateRequest update -> {
                 buffer = update.toBytes(size);
                 expectFull = false;
-                type = RequestType.UPDATE;
             }
             case PurgeRequest purge -> {
                 buffer = purge.toBytes();
                 expectFull = false;
-                type = RequestType.PURGE;
             }
             default -> throw new IllegalArgumentException("Unsupported request: " + request.getClass());
         }
 
-        if (channel == null || !channel.isActive()) {
-            throw new IOException("Channel is not active or was closed");
-        }
-        responseQueue.clear();
-
+        CompletableFuture<Object> future = new CompletableFuture<>();
+        pending.add(new PendingRequest(expectFull, future));
         channel.writeAndFlush(Unpooled.wrappedBuffer(buffer)).sync();
-        byte[] response = responseQueue.poll(30, TimeUnit.SECONDS);
-
-        if (response == null) {
-            throw new RuntimeException("Timeout waiting for response");
-        }
-
-        if (expectFull && response[0] == 0x01) {
-            return FullResponse.fromBytes(response, size);
-        } else {
-            return new SimpleResponse(response[0] == 0x01);
-        }
+        return future.get(30, TimeUnit.SECONDS);
     }
 
     @Override
