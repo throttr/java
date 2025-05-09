@@ -47,28 +47,8 @@ public class Connection implements AutoCloseable {
             throw new IOException("Socket is already closed");
         }
 
-        byte[] buffer;
-        boolean expectFullResponse;
-
-        switch (request) {
-            case InsertRequest insert -> {
-                buffer = insert.toBytes(size);
-                expectFullResponse = false;
-            }
-            case QueryRequest query -> {
-                buffer = query.toBytes();
-                expectFullResponse = true;
-            }
-            case UpdateRequest update -> {
-                buffer = update.toBytes(size);
-                expectFullResponse = false;
-            }
-            case PurgeRequest purge -> {
-                buffer = purge.toBytes();
-                expectFullResponse = false;
-            }
-            default -> throw new IllegalArgumentException("Unsupported request type: " + request.getClass());
-        }
+        byte[] buffer = getRequestBuffer(request);
+        boolean expectFullResponse = expectsFullResponse(request);
 
         out.write(buffer);
         out.flush();
@@ -78,37 +58,56 @@ public class Connection implements AutoCloseable {
             throw new IOException("Connection closed while reading response head.");
         }
 
-        if (expectFullResponse && head == 0x01) {
-            int expected = size.getValue() * 2 + 1;
-            byte[] merged = new byte[expected];
-            int offset = 0;
-            while (offset < expected) {
-                int read = in.read(merged, offset, expected - offset);
-                if (read == -1) {
-                    throw new IOException("Unexpected EOF while reading full response.");
-                }
-                offset += read;
+        return expectFullResponse && head == 0x01
+                ? readFullResponse(head)
+                : readSimpleResponse(head);
+    }
+
+    private byte[] getRequestBuffer(Object request) {
+        return switch (request) {
+            case InsertRequest insert -> insert.toBytes(size);
+            case QueryRequest query -> query.toBytes();
+            case UpdateRequest update -> update.toBytes(size);
+            case PurgeRequest purge -> purge.toBytes();
+            default -> throw new IllegalArgumentException("Unsupported request type");
+        };
+    }
+
+    private boolean expectsFullResponse(Object request) {
+        return request instanceof QueryRequest;
+    }
+
+    private FullResponse readFullResponse(int head) throws IOException {
+        int expected = size.getValue() * 2 + 1;
+        byte[] merged = new byte[expected];
+        int offset = 0;
+
+        while (offset < expected) {
+            int read = in.read(merged, offset, expected - offset);
+            if (read == -1) {
+                throw new IOException("Unexpected EOF while reading full response.");
             }
+            offset += read;
+        }
 
-            byte[] full = new byte[1 + expected];
-            full[0] = (byte) head;
-            System.arraycopy(merged, 0, full, 1, expected);
+        byte[] full = new byte[1 + expected];
+        full[0] = (byte) head;
+        System.arraycopy(merged, 0, full, 1, expected);
 
-            while (in.available() > 0) {
-                byte[] residual = new byte[Math.min(in.available(), 64)];
-                int readBytes = in.read(residual);
-                if (readBytes <= 0) break;
-            }
+        clearResidualInput();
+        return FullResponse.fromBytes(full, size);
+    }
 
-            return FullResponse.fromBytes(full, size);
-        } else {
-            while (in.available() > 0) {
-                byte[] residual = new byte[Math.min(in.available(), 64)];
-                int readBytes = in.read(residual);
-                if (readBytes <= 0) break;
-            }
+    private SimpleResponse readSimpleResponse(int head) throws IOException {
+        clearResidualInput();
+        return new SimpleResponse(head == 0x01);
+    }
 
-            return new SimpleResponse(head == 0x01);
+    private void clearResidualInput() throws IOException {
+        while (in.available() > 0) {
+            byte[] residual = new byte[Math.min(in.available(), 64)];
+            int readBytes = in.read(residual);
+            if (readBytes <= 0) break;
         }
     }
 
