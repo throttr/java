@@ -23,18 +23,13 @@ import cl.throttr.responses.SimpleResponse;
 
 import java.io.DataInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
-import java.util.LinkedList;
-import java.util.Queue;
-import java.util.concurrent.CompletableFuture;
 
-import java.util.concurrent.Executors;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.TimeUnit;
-
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import static cl.throttr.utils.Binary.toHex;
+
 
 /**
  * Connection
@@ -44,6 +39,12 @@ public class Connection implements AutoCloseable {
     private final ValueSize size;
     private final OutputStream out;
     private final DataInputStream in;
+
+    private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss.SSS");
+
+    private String now() {
+        return LocalTime.now().format(TIME_FORMATTER);
+    }
 
     public Connection(String host, int port, ValueSize size) throws IOException {
         this.socket = new Socket(host, port);
@@ -82,7 +83,7 @@ public class Connection implements AutoCloseable {
             default -> throw new IllegalArgumentException("Unsupported request type: " + request.getClass());
         }
 
-        System.out.println("SEND  → " + toHex(buffer));
+        System.out.println(now() + " SEND  → " + toHex(buffer));
 
         out.write(buffer);
         out.flush();
@@ -97,10 +98,10 @@ public class Connection implements AutoCloseable {
             byte[] full = new byte[1 + expected];
             full[0] = head;
             System.arraycopy(merged, 0, full, 1, expected);
-            System.out.println("RECV  ← 2 " + toHex(full));
+            System.out.println(now() + " RECV  ← 2 " + toHex(full));
             return FullResponse.fromBytes(full, size);
         } else {
-            System.out.println("RECV  ← 1 " + toHex(new byte[]{head}));
+            System.out.println(now() + " RECV  ← 1 " + toHex(new byte[]{head}));
             return new SimpleResponse(head == 0x01);
         }
     }
