@@ -34,8 +34,6 @@ import static org.awaitility.Awaitility.await;
 
 import java.time.Duration;
 
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -45,17 +43,17 @@ import static org.junit.jupiter.api.Assertions.*;
 @Execution(ExecutionMode.SAME_THREAD)
 class ServiceTest {
 
-    private Service service;
+    static private Service service;
 
-    @BeforeEach
-    void setUp() throws Exception {
+    @BeforeAll
+    static void setUp() throws Exception {
         ValueSize size = Testing.getValueSizeFromEnv();
         service = new Service("127.0.0.1", 9000, size,1);
         service.connect();
     }
 
-    @AfterEach
-    void shutdown() {
+    @AfterAll
+    static void shutdown() {
         service.close();
     }
 
@@ -193,7 +191,7 @@ class ServiceTest {
                 key
         ));
         assertTrue(queryResponse2.success());
-        assertEquals(5L, queryResponse2.quota());
+        assertEquals(5, queryResponse2.quota());
 
         SimpleResponse purgeResponse = (SimpleResponse) service.send(new PurgeRequest(
                 key

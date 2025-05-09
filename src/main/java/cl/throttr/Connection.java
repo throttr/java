@@ -46,7 +46,7 @@ public class Connection implements AutoCloseable {
     public Connection(String host, int port, ValueSize size) throws IOException {
         this.socket = new Socket(host, port);
         this.socket.setTcpNoDelay(true);
-        this.socket.setSoTimeout(5000);
+        this.socket.setSoTimeout(30000);
         this.out = socket.getOutputStream();
         this.in = new DataInputStream(socket.getInputStream());
         this.size = size;
@@ -82,6 +82,8 @@ public class Connection implements AutoCloseable {
 
         out.write(buffer);
         out.flush();
+
+
 
         byte head = in.readByte();
 
