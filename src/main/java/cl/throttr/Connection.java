@@ -94,16 +94,18 @@ public class Connection implements AutoCloseable {
             full[0] = (byte) head;
             System.arraycopy(merged, 0, full, 1, expected);
 
-            if (in.available() > 0) {
+            while (in.available() > 0) {
                 byte[] residual = new byte[Math.min(in.available(), 64)];
-                in.read(residual);
+                int readBytes = in.read(residual);
+                if (readBytes <= 0) break;
             }
 
             return FullResponse.fromBytes(full, size);
         } else {
-            if (in.available() > 0) {
+            while (in.available() > 0) {
                 byte[] residual = new byte[Math.min(in.available(), 64)];
-                in.read(residual);
+                int readBytes = in.read(residual);
+                if (readBytes <= 0) break;
             }
 
             return new SimpleResponse(head == 0x01);
