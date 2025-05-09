@@ -30,6 +30,7 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.timeout.ReadTimeoutHandler;
 
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -58,14 +59,31 @@ public class Connection implements AutoCloseable {
                     @Override
                     protected void initChannel(SocketChannel ch) {
                         ch.pipeline().addLast(new ReadTimeoutHandler(30));
-                        ch.pipeline().addLast(new SimpleChannelInboundHandler<ByteBuf>() {
+                        ch.pipeline().addLast(new ChannelInboundHandlerAdapter() {
                             @Override
-                            protected void channelRead0(ChannelHandlerContext ctx, ByteBuf msg) {
-                                byte[] data = new byte[msg.readableBytes()];
-                                msg.readBytes(data);
-                                responseQueue.offer(data);
+                            public void channelRead(ChannelHandlerContext ctx, Object msg) {
+                                ByteBuf buf = (ByteBuf) msg;
+                                try {
+                                    byte[] data = new byte[buf.readableBytes()];
+                                    buf.readBytes(data);
+                                    responseQueue.offer(data);
+                                } finally {
+                                    buf.release();
+                                }
+                            }
+
+                            @Override
+                            public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+                                System.err.println("⚠️ Netty error: " + cause.getMessage());
+                                ctx.close();
                             }
                         });
+                    }
+
+                    @Override
+                    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+                        System.err.println("Netty handler exception: " + cause.getMessage());
+                        ctx.close();
                     }
                 });
 
@@ -101,6 +119,11 @@ public class Connection implements AutoCloseable {
             }
             default -> throw new IllegalArgumentException("Unsupported request: " + request.getClass());
         }
+
+        if (channel == null || !channel.isActive()) {
+            throw new IOException("Channel is not active or was closed");
+        }
+        responseQueue.clear();
 
         channel.writeAndFlush(Unpooled.wrappedBuffer(buffer)).sync();
         byte[] response = responseQueue.poll(30, TimeUnit.SECONDS);
