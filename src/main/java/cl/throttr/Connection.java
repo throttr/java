@@ -12,6 +12,7 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
+
 package cl.throttr;
 
 import cl.throttr.enums.RequestType;
@@ -19,117 +20,122 @@ import cl.throttr.enums.ValueSize;
 import cl.throttr.requests.*;
 import cl.throttr.responses.FullResponse;
 import cl.throttr.responses.SimpleResponse;
-import io.netty.bootstrap.Bootstrap;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
-import io.netty.channel.*;
-import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.channel.socket.SocketChannel;
-import io.netty.channel.socket.nio.NioSocketChannel;
-import io.netty.handler.timeout.ReadTimeoutHandler;
 
-import java.net.InetSocketAddress;
-import java.util.Queue;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.TimeUnit;
+import java.io.DataInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.Socket;
 
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import static cl.throttr.utils.Binary.toHex;
+
+
+/**
+ * Connection
+ */
 public class Connection implements AutoCloseable {
-    private final String host;
-    private final int port;
+    private final Socket socket;
     private final ValueSize size;
-    private final EventLoopGroup group;
-    private Channel channel;
-    private final Queue<PendingRequest> pending = new ConcurrentLinkedQueue<>();
+    private final OutputStream out;
+    private final InputStream in;
 
-    private static class PendingRequest {
-        final boolean expectFull;
-        final CompletableFuture<Object> future;
+    private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss.SSS");
 
-        PendingRequest(boolean expectFull, CompletableFuture<Object> future) {
-            this.expectFull = expectFull;
-            this.future = future;
-        }
+    private String now() {
+        return LocalTime.now().format(TIME_FORMATTER);
     }
 
-    public Connection(String host, int port, ValueSize size) throws InterruptedException {
-        this.host = host;
-        this.port = port;
+    public Connection(String host, int port, ValueSize size) throws IOException {
+        this.socket = new Socket(host, port);
+        this.socket.setTcpNoDelay(true);
+        this.socket.setSoTimeout(30000);
+        this.out = socket.getOutputStream();
+        this.in = socket.getInputStream();
         this.size = size;
-        this.group = new NioEventLoopGroup(1);
-
-        Bootstrap bootstrap = new Bootstrap();
-        bootstrap.group(group)
-                .channel(NioSocketChannel.class)
-                .option(ChannelOption.TCP_NODELAY, true)
-                .handler(new ChannelInitializer<SocketChannel>() {
-                    @Override
-                    protected void initChannel(SocketChannel ch) {
-                        ch.pipeline().addLast(new ReadTimeoutHandler(30));
-                        ch.pipeline().addLast(new SimpleChannelInboundHandler<ByteBuf>() {
-                            @Override
-                            protected void channelRead0(ChannelHandlerContext ctx, ByteBuf msg) {
-                                byte[] data = new byte[msg.readableBytes()];
-                                msg.readBytes(data);
-
-                                PendingRequest req = pending.poll();
-                                if (req == null) {
-                                    System.err.println("⚠️ Netty error: unexpected response without pending request");
-                                    return;
-                                }
-                                try {
-                                    if (req.expectFull && data[0] == 0x01) {
-                                        req.future.complete(FullResponse.fromBytes(data, size));
-                                    } else {
-                                        req.future.complete(new SimpleResponse(data[0] == 0x01));
-                                    }
-                                } catch (Throwable t) {
-                                    req.future.completeExceptionally(t);
-                                }
-                            }
-                        });
-                    }
-                });
-
-        ChannelFuture future = bootstrap.connect(new InetSocketAddress(host, port)).sync();
-        this.channel = future.channel();
     }
 
-    public Object send(Object request) throws Exception {
+    public Object send(Object request) throws IOException {
+        if (socket.isClosed()) {
+            throw new IOException("Socket is already closed");
+        }
+
         byte[] buffer;
-        boolean expectFull;
+        boolean expectFullResponse;
 
         switch (request) {
             case InsertRequest insert -> {
                 buffer = insert.toBytes(size);
-                expectFull = false;
+                expectFullResponse = false;
             }
             case QueryRequest query -> {
                 buffer = query.toBytes();
-                expectFull = true;
+                expectFullResponse = true;
             }
             case UpdateRequest update -> {
                 buffer = update.toBytes(size);
-                expectFull = false;
+                expectFullResponse = false;
             }
             case PurgeRequest purge -> {
                 buffer = purge.toBytes();
-                expectFull = false;
+                expectFullResponse = false;
             }
-            default -> throw new IllegalArgumentException("Unsupported request: " + request.getClass());
+            default -> throw new IllegalArgumentException("Unsupported request type: " + request.getClass());
         }
 
-        CompletableFuture<Object> future = new CompletableFuture<>();
-        pending.add(new PendingRequest(expectFull, future));
-        channel.writeAndFlush(Unpooled.wrappedBuffer(buffer)).sync();
-        return future.get(30, TimeUnit.SECONDS);
+        System.out.println(now()+ " [" + System.identityHashCode(this) + "] [" + Thread.currentThread().getName() + "] SEND  → " + toHex(buffer));
+
+        out.write(buffer);
+        out.flush();
+
+        int head = in.read();
+        if (head == -1) {
+            throw new IOException("Connection closed while reading response head.");
+        }
+
+        if (expectFullResponse && head == 0x01) {
+            int expected = size.getValue() * 2 + 1;
+            byte[] merged = new byte[expected];
+            int offset = 0;
+            while (offset < expected) {
+                int read = in.read(merged, offset, expected - offset);
+                if (read == -1) {
+                    throw new IOException("Unexpected EOF while reading full response.");
+                }
+                offset += read;
+            }
+
+            byte[] full = new byte[1 + expected];
+            full[0] = (byte) head;
+            System.arraycopy(merged, 0, full, 1, expected);
+
+            System.out.println(now() + " [" + System.identityHashCode(this) + "] [" + Thread.currentThread().getName() + "] RECV  ← 2 " + toHex(full));
+
+            if (in.available() > 0) {
+                byte[] residual = new byte[Math.min(in.available(), 64)];
+                int read = in.read(residual);
+                System.err.println(now() + " [" + System.identityHashCode(this) + "] [" + Thread.currentThread().getName() + "] ⚠️ GARBAGE DETECTED: " + toHex(residual));
+                throw new IOException("Socket read desync detected, residual bytes found: " + read);
+            }
+
+            return FullResponse.fromBytes(full, size);
+        } else {
+            System.out.println(now() + " [" + System.identityHashCode(this) + "] [" + Thread.currentThread().getName() + "] RECV  ← 1 " + toHex(new byte[]{(byte) head}));
+
+            if (in.available() > 0) {
+                byte[] residual = new byte[Math.min(in.available(), 64)];
+                int read = in.read(residual);
+                System.err.println(now() + " [" + System.identityHashCode(this) + "] [" + Thread.currentThread().getName() + "] ⚠️ GARBAGE DETECTED: " + toHex(residual));
+                throw new IOException("Socket read desync detected, residual bytes found: " + read);
+            }
+
+            return new SimpleResponse(head == 0x01);
+        }
     }
 
     @Override
-    public void close() {
-        if (channel != null) {
-            channel.close();
-        }
-        group.shutdownGracefully();
+    public void close() throws IOException {
+        socket.close();
     }
 }

@@ -32,6 +32,7 @@ import org.junit.jupiter.api.parallel.ExecutionMode;
 
 import static org.awaitility.Awaitility.await;
 
+import java.io.IOException;
 import java.time.Duration;
 
 
@@ -52,7 +53,7 @@ class ServiceTest {
     }
 
     @AfterAll
-    static void shutdown() {
+    static void shutdown() throws IOException {
         service.close();
     }
 

@@ -111,7 +111,7 @@ public class Service implements AutoCloseable {
      * Close
      */
     @Override
-    public void close() {
+    public void close() throws IOException {
         for (Connection conn : connections) {
             conn.close();
         }
