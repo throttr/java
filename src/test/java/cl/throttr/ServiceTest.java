@@ -23,7 +23,6 @@ import cl.throttr.utils.Testing;
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.*;
 
-import java.io.IOException;
 import java.time.Duration;
 import java.util.UUID;
 
@@ -32,22 +31,12 @@ import static org.junit.jupiter.api.Assertions.*;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ServiceTest {
 
-    private Service service;
-
-    @BeforeAll
-    void setUp() throws Exception {
-        ValueSize size = Testing.getValueSizeFromEnv();
-        service = new Service("127.0.0.1", 9000, size, 1);
-        service.connect();
-    }
-
-    @AfterAll
-    void shutdown() throws IOException {
-        service.close();
-    }
-
     @Test
     void shouldBeProtocolCompliant() throws Exception {
+        ValueSize size = Testing.getValueSizeFromEnv();
+        Service service = new Service("127.0.0.1", 9000, size, 1);
+        service.connect();
+
         String key = UUID.randomUUID().toString();
 
         // INSERT with quota=7 and ttl=60
@@ -121,5 +110,7 @@ class ServiceTest {
 
         // QUERY -> should fail
         Awaitility.await().atMost(Duration.ofSeconds(2)).until(() -> !((SimpleResponse) service.send(new QueryRequest(key))).success());
+
+        service.close();
     }
 }
