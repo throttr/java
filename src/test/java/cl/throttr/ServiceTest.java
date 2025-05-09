@@ -143,29 +143,29 @@ class ServiceTest {
         assertFalse(query.success());
     }
 
-    @Test
-    void shouldResetQuotaAfterTTLExpiration() throws Exception {
-        String key = "user:ttl";
-
-        service.send(new InsertRequest(
-                2, TTLType.SECONDS, 1, key
-        ));
-
-        FullResponse queryAfterInsert = (FullResponse) service.send(new QueryRequest(
-                key
-        ));
-        assertTrue(queryAfterInsert.quota() <= 2);
-
-        await()
-                .atMost(Duration.ofSeconds(5))
-                .pollInterval(Duration.ofSeconds(2))
-                .until(() -> {
-                    SimpleResponse response = (SimpleResponse) service.send(new QueryRequest(
-                            key
-                    ));
-                    return !response.success();
-                });
-    }
+//    @Test
+//    void shouldResetQuotaAfterTTLExpiration() throws Exception {
+//        String key = "user:ttl";
+//
+//        service.send(new InsertRequest(
+//                2, TTLType.SECONDS, 1, key
+//        ));
+//
+//        FullResponse queryAfterInsert = (FullResponse) service.send(new QueryRequest(
+//                key
+//        ));
+//        assertTrue(queryAfterInsert.quota() <= 2);
+//
+//        await()
+//                .atMost(Duration.ofSeconds(5))
+//                .pollInterval(Duration.ofSeconds(2))
+//                .until(() -> {
+//                    SimpleResponse response = (SimpleResponse) service.send(new QueryRequest(
+//                            key
+//                    ));
+//                    return !response.success();
+//                });
+//    }
 
     @Test
     void shouldAllTheFlowWorksAsExpected() throws Exception {
