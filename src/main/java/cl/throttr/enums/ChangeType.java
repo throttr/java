@@ -19,16 +19,40 @@ package cl.throttr.enums;
  * Attribute types
  */
 public enum ChangeType {
+    /**
+     * Patch
+     */
     PATCH(0),
+
+    /**
+     * Increase
+     */
     INCREASE(1),
+
+    /**
+     * Decrease
+     */
     DECREASE(2);
 
+    /**
+     * Value
+     */
     private final int value;
 
+    /**
+     * Constructor
+     *
+     * @param value
+     */
     ChangeType(int value) {
         this.value = value;
     }
 
+    /**
+     * Get value
+     *
+     * @return int
+     */
     public int getValue() {
         return value;
     }

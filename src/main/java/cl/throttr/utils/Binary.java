@@ -23,8 +23,18 @@ import java.nio.ByteBuffer;
  * Binary helpers
  */
 public final class Binary {
+    /**
+     * Constructor
+     */
     private Binary() {}
 
+    /**
+     * Put
+     *
+     * @param buffer
+     * @param value
+     * @param size
+     */
     public static void put(ByteBuffer buffer, long value, ValueSize size) {
         switch (size) {
             case UINT8 -> buffer.put((byte) value);

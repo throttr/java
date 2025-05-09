@@ -30,7 +30,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class ServiceSuperTest {
+class ServiceTest {
 
     private Service service;
 
@@ -47,7 +47,7 @@ class ServiceSuperTest {
     }
 
     @Test
-    void shouldPerformFullFlowAsExpected() throws Exception {
+    void shouldBeProtocolCompliant() throws Exception {
         String key = UUID.randomUUID().toString();
 
         // INSERT with quota=7 and ttl=60

@@ -29,11 +29,34 @@ import java.net.Socket;
  * Connection
  */
 public class Connection implements AutoCloseable {
+    /**
+     * Socket
+     */
     private final Socket socket;
+
+    /**
+     * Size
+     */
     private final ValueSize size;
+
+    /**
+     * Out
+     */
     private final OutputStream out;
+
+    /**
+     * In
+     */
     private final InputStream in;
 
+    /**
+     * Constructor
+     *
+     * @param host
+     * @param port
+     * @param size
+     * @throws IOException
+     */
     public Connection(String host, int port, ValueSize size) throws IOException {
         this.socket = new Socket(host, port);
         this.socket.setTcpNoDelay(true);
@@ -42,6 +65,13 @@ public class Connection implements AutoCloseable {
         this.size = size;
     }
 
+    /**
+     * Send
+     *
+     * @param request
+     * @return
+     * @throws IOException
+     */
     public Object send(Object request) throws IOException {
         if (socket.isClosed()) {
             throw new IOException("Socket is already closed");
@@ -63,6 +93,12 @@ public class Connection implements AutoCloseable {
                 : readSimpleResponse(head);
     }
 
+    /**
+     * Get request buffer
+     *
+     * @param request
+     * @return
+     */
     private byte[] getRequestBuffer(Object request) {
         return switch (request) {
             case InsertRequest insert -> insert.toBytes(size);
@@ -73,10 +109,23 @@ public class Connection implements AutoCloseable {
         };
     }
 
+    /**
+     * Expects full response
+     *
+     * @param request
+     * @return bool
+     */
     private boolean expectsFullResponse(Object request) {
         return request instanceof QueryRequest;
     }
 
+    /**
+     * Read full response
+     *
+     * @param head
+     * @return SimpleResponse
+     * @throws IOException
+     */
     private FullResponse readFullResponse(int head) throws IOException {
         int expected = size.getValue() * 2 + 1;
         byte[] merged = new byte[expected];
@@ -98,11 +147,23 @@ public class Connection implements AutoCloseable {
         return FullResponse.fromBytes(full, size);
     }
 
+    /**
+     * Read simple response
+     *
+     * @param head
+     * @return SimpleResponse
+     * @throws IOException
+     */
     private SimpleResponse readSimpleResponse(int head) throws IOException {
         clearResidualInput();
         return new SimpleResponse(head == 0x01);
     }
 
+    /**
+     * Clear residual input
+     *
+     * @throws IOException
+     */
     private void clearResidualInput() throws IOException {
         while (in.available() > 0) {
             byte[] residual = new byte[Math.min(in.available(), 64)];
@@ -111,6 +172,11 @@ public class Connection implements AutoCloseable {
         }
     }
 
+    /**
+     * Close
+     *
+     * @throws IOException
+     */
     @Override
     public void close() throws IOException {
         socket.close();

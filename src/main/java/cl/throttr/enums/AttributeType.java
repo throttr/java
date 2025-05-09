@@ -19,15 +19,35 @@ package cl.throttr.enums;
  * Attribute types
  */
 public enum AttributeType {
+    /**
+     * Quota
+     */
     QUOTA(0),
+
+    /**
+     * TTL
+     */
     TTL(1);
 
+    /**
+     * Value
+     */
     private final int value;
 
+    /**
+     * Constructor
+     *
+     * @param value
+     */
     AttributeType(int value) {
         this.value = value;
     }
 
+    /**
+     * Get value
+     *
+     * @return int
+     */
     public int getValue() {
         return value;
     }

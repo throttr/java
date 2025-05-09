@@ -19,17 +19,45 @@ package cl.throttr.enums;
  * Value sizes
  */
 public enum ValueSize {
+    /**
+     * UINT8
+     */
     UINT8(1),
+
+    /**
+     * UINT16
+     */
     UINT16(2),
+
+    /**
+     * UINT32
+     */
     UINT32(4),
+
+    /**
+     * UINT64
+     */
     UINT64(8);
 
+    /**
+     * Value
+     */
     private final int value;
 
+    /**
+     * Constructor
+     *
+     * @param value
+     */
     ValueSize(int value) {
         this.value = value;
     }
 
+    /**
+     * Get value
+     *
+     * @return int
+     */
     public int getValue() {
         return value;
     }

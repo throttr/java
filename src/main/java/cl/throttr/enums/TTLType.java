@@ -19,23 +19,65 @@ package cl.throttr.enums;
  * TTL types
  */
 public enum TTLType {
+    /**
+     * Nanoseconds
+     */
     NANOSECONDS(1),
+
+    /**
+     * Microseconds
+     */
     MICROSECONDS(2),
+
+    /**
+     * Milliseconds
+     */
     MILLISECONDS(3),
+
+    /**
+     * Seconds
+     */
     SECONDS(4),
+
+    /**
+     * Minutes
+     */
     MINUTES(5),
+
+    /**
+     * Hours
+     */
     HOURS(6);
 
+    /**
+     * Value
+     */
     private final int value;
 
+    /**
+     * Constructor
+     *
+     * @param value
+     */
     TTLType(int value) {
         this.value = value;
     }
 
+    /**
+     * Get value
+     *
+     * @return int
+     */
     public int getValue() {
         return value;
     }
 
+    /**
+     * From byte
+     *
+     * @param raw
+     * @return TTLType
+     */
     public static TTLType fromByte(byte raw) {
         int val = raw & 0xFF;
         for (TTLType type : TTLType.values()) {

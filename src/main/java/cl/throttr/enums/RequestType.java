@@ -19,17 +19,45 @@ package cl.throttr.enums;
  * Request types
  */
 public enum RequestType {
+    /**
+     * Insert
+     */
     INSERT(0x01),
+
+    /**
+     * Query
+     */
     QUERY(0x02),
+
+    /**
+     * Update
+     */
     UPDATE(0x03),
+
+    /**
+     * Purge
+     */
     PURGE(0x04);
 
+    /**
+     * Value
+     */
     private final int value;
 
+    /**
+     * Constructor
+     *
+     * @param value
+     */
     RequestType(int value) {
         this.value = value;
     }
 
+    /**
+     * Get value
+     *
+     * @return int
+     */
     public int getValue() {
         return value;
     }
