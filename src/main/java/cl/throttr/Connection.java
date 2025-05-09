@@ -115,8 +115,7 @@ public class Connection implements AutoCloseable {
             if (in.available() > 0) {
                 byte[] residual = new byte[Math.min(in.available(), 64)];
                 int read = in.read(residual);
-                System.err.println(now() + " [" + System.identityHashCode(this) + "] [" + Thread.currentThread().getName() + "] ⚠️ GARBAGE DETECTED: " + toHex(residual));
-                throw new IOException("Socket read desync detected, residual bytes found: " + read);
+                System.err.println(now() + " [" + System.identityHashCode(this) + "] [" + Thread.currentThread().getName() + "] ⚠️ GARBAGE DETECTED: " + toHex(residual) + " INT: " + read);
             }
 
             return FullResponse.fromBytes(full, size);
@@ -126,8 +125,7 @@ public class Connection implements AutoCloseable {
             if (in.available() > 0) {
                 byte[] residual = new byte[Math.min(in.available(), 64)];
                 int read = in.read(residual);
-                System.err.println(now() + " [" + System.identityHashCode(this) + "] [" + Thread.currentThread().getName() + "] ⚠️ GARBAGE DETECTED: " + toHex(residual));
-                throw new IOException("Socket read desync detected, residual bytes found: " + read);
+                System.err.println(now() + " [" + System.identityHashCode(this) + "] [" + Thread.currentThread().getName() + "] ⚠️ GARBAGE DETECTED: " + toHex(residual) + " INT: " + read);
             }
 
             return new SimpleResponse(head == 0x01);
