@@ -55,7 +55,7 @@ class ServiceTest {
 
     @Test
     void shouldInsertAndQuerySuccessfully() throws Exception {
-        String key = "user:1234";
+        String key = java.util.UUID.randomUUID().toString();
 
         SimpleResponse insert = (SimpleResponse) service.send(new InsertRequest(
                 5, TTLType.SECONDS, 5, key
@@ -79,7 +79,7 @@ class ServiceTest {
 
     @Test
     void shouldConsumeQuotaViaInsertUsageAndDenyAfterExhausted() throws Exception {
-        String key = "user:consume-insert";
+        String key = java.util.UUID.randomUUID().toString();
 
         service.send(new InsertRequest(
                 2, TTLType.SECONDS, 5, key
@@ -103,7 +103,7 @@ class ServiceTest {
 
     @Test
     void shouldConsumeQuotaViaUpdateDecreaseAndReachZero() throws Exception {
-        String key = "user:consume-update";
+        String key = java.util.UUID.randomUUID().toString();
 
         service.send(new InsertRequest(
                 2, TTLType.SECONDS, 5, key
@@ -137,7 +137,7 @@ class ServiceTest {
 
     @Test
     void shouldPurgeAndFailToQueryAfterwards() throws Exception {
-        String key = "user:purge-3";
+        String key = java.util.UUID.randomUUID().toString();
 
         service.send(new InsertRequest(
                 1, TTLType.SECONDS, 5, key
@@ -156,7 +156,7 @@ class ServiceTest {
 
     @Test
     void shouldAllTheFlowWorksAsExpected() throws Exception {
-        String key = "user:purge-2";
+        String key = java.util.UUID.randomUUID().toString();
 
         SimpleResponse insertResponse = (SimpleResponse) service.send(new InsertRequest(
                 10, TTLType.SECONDS, 30, key
