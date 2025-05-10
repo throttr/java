@@ -22,6 +22,7 @@ import cl.throttr.responses.*;
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.*;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.UUID;
 
@@ -114,5 +115,26 @@ class ServiceTest {
         Awaitility.await().atMost(Duration.ofSeconds(2)).until(() -> !((SimpleResponse) service.send(new QueryRequest(key))).success());
 
         service.close();
+    }
+
+    @Test
+    void shouldThrowIfMaxConnectionsIsZero() {
+        IllegalArgumentException ex = assertThrows(
+                IllegalArgumentException.class,
+                () -> new Service("localhost", 5555, ValueSize.UINT16, 0)
+        );
+        assertEquals("maxConnections must be greater than 0.", ex.getMessage());
+    }
+
+    @Test
+    void shouldThrowIfSendCalledWithoutConnect() throws IOException {
+        Service service = new Service("localhost", 5555, ValueSize.UINT16, 1);
+
+        IllegalStateException ex = assertThrows(
+                IllegalStateException.class,
+                () -> service.send(new Object())
+        );
+
+        assertEquals("There are no available connections.", ex.getMessage());
     }
 }
