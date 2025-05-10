@@ -92,11 +92,10 @@
                 <version>0.8.13</version>
                 <executions>
                     <execution>
-                        <id>prepare-agent</id>
+                        <id>instrument</id>
                         <goals>
                             <goal>instrument</goal>
                         </goals>
-                        <phase>process-classes</phase>
                     </execution>
                     <execution>
                         <id>restore-classes</id>
@@ -111,6 +110,9 @@
                         <goals>
                             <goal>report</goal>
                         </goals>
+                        <configuration>
+                            <dataFile>${project.basedir}/jacoco.exec</dataFile>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>
