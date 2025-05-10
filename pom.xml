@@ -90,11 +90,6 @@
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
                 <version>0.8.13</version>
-                <configuration>
-                    <includes>
-                        <include>cl/throttr/*</include>
-                    </includes>
-                </configuration>
                 <executions>
                     <execution>
                         <id>prepare-agent</id>
