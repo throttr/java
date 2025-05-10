@@ -77,7 +77,7 @@ public class Connection implements AutoCloseable {
             throw new IOException("Socket is already closed");
         }
 
-        byte[] buffer = getRequestBuffer(request);
+        byte[] buffer = getRequestBuffer(request, size);
         boolean expectFullResponse = expectsFullResponse(request);
 
         out.write(buffer);
@@ -97,9 +97,10 @@ public class Connection implements AutoCloseable {
      * Get request buffer
      *
      * @param request
-     * @return
+     * @param size
+     * @return byte[]
      */
-    private byte[] getRequestBuffer(Object request) {
+    public static byte[] getRequestBuffer(Object request, ValueSize size) {
         return switch (request) {
             case InsertRequest insert -> insert.toBytes(size);
             case QueryRequest query -> query.toBytes();
