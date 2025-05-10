@@ -33,18 +33,13 @@ public class Testing {
      * @return ValueSize
      */
     public static ValueSize getValueSizeFromEnv() {
-        String size = System.getenv("THROTTR_SIZE");
+        String size = System.getenv().getOrDefault("THROTTR_SIZE", "uint16");
 
-        if (size == null) {
-            size = "uint16"; // default
-        }
+        if ("uint8".equals(size)) return ValueSize.UINT8;
+        if ("uint16".equals(size)) return ValueSize.UINT16;
+        if ("uint32".equals(size)) return ValueSize.UINT32;
+        if ("uint64".equals(size)) return ValueSize.UINT64;
 
-        return switch (size) {
-            case "uint8" -> ValueSize.UINT8;
-            case "uint16" -> ValueSize.UINT16;
-            case "uint32" -> ValueSize.UINT32;
-            case "uint64" -> ValueSize.UINT64;
-            default -> throw new IllegalArgumentException("Unsupported THROTTR_SIZE: " + size);
-        };
+        throw new IllegalArgumentException("Unsupported THROTTR_SIZE: " + size);
     }
 }
