@@ -93,6 +93,7 @@
                     <forkCount>1</forkCount>
                     <reuseForks>true</reuseForks>
                     <argLine>@{surefire.argLine} --enable-native-access=ALL-UNNAMED</argLine>
+                    <skip>${!jacoco-agent}</skip>
                     <systemPropertyVariables>
                         <junit.jupiter.execution.parallel.enabled>false</junit.jupiter.execution.parallel.enabled>
                     </systemPropertyVariables>

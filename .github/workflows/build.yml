@@ -45,7 +45,7 @@ jobs:
 
       - name: Build and test
         if: ${{ github.ref_type != 'tag' }}
-        run: mvn clean verify -PCoverage -Djacoco.skip=true -X
+        run: mvn clean verify -PCoverage -Djacoco-agent=runtime -X
         env:
           THROTTR_SIZE: ${{ matrix.size }}
 
