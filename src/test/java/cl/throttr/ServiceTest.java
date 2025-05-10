@@ -19,7 +19,6 @@ package cl.throttr;
 import cl.throttr.enums.*;
 import cl.throttr.requests.*;
 import cl.throttr.responses.*;
-import cl.throttr.utils.Testing;
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.*;
 
@@ -32,8 +31,13 @@ class ServiceTest {
 
     @Test
     void shouldBeProtocolCompliant() throws Exception {
-        ValueSize size = Testing.getValueSizeFromEnv();
-        Service service = new Service("127.0.0.1", 9000, size, 1);
+        ValueSize sized = ValueSize.UINT8;
+        String size = System.getenv().getOrDefault("THROTTR_SIZE", "uint16");
+        if ("uint16".equals(size)) sized = ValueSize.UINT16;
+        if ("uint32".equals(size)) sized = ValueSize.UINT32;
+        if ("uint64".equals(size)) sized = ValueSize.UINT64;
+
+        Service service = new Service("127.0.0.1", 9000, sized, 1);
         service.connect();
 
         String key = UUID.randomUUID().toString();
