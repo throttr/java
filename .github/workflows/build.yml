@@ -45,9 +45,7 @@ jobs:
 
       - name: Build and test
         if: ${{ github.ref_type != 'tag' }}
-        run: |
-          mvn install -DskipTests=true -Dmaven.javadoc.skip=true -B -V
-          mvn -B test -X
+        run: mvn clean verify
         env:
           THROTTR_SIZE: ${{ matrix.size }}
 
