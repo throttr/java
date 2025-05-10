@@ -85,14 +85,18 @@
                 <version>0.8.11</version>
                 <executions>
                     <execution>
-                        <id>prepare-agent</id>
+                        <id>instrument</id>
+                        <phase>process-classes</phase>
                         <goals>
-                            <goal>prepare-agent</goal>
+                            <goal>instrument</goal>
                         </goals>
-                        <configuration>
-                            <destFile>${project.build.directory}/jacoco.exec</destFile>
-                            <append>true</append>
-                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>restore</id>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>restore-instrumented-classes</goal>
+                        </goals>
                     </execution>
                     <execution>
                         <id>report</id>
