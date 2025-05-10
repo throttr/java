@@ -127,13 +127,12 @@ class ServiceTest {
     }
 
     @Test
-    void shouldThrowIfSendCalledWithoutConnect() throws IOException {
-        Service service = new Service("127.0.0.1", 9000, ValueSize.UINT16, 1);
+    void shouldThrowIfSendCalledWithoutConnect() {
+        var service = new Service("127.0.0.1", 9000, ValueSize.UINT16, 1);
 
-        IllegalStateException ex = assertThrows(
-                IllegalStateException.class,
-                () -> service.send(new Object())
-        );
+        IllegalStateException ex = assertThrows(IllegalStateException.class, () -> {
+            service.send(new Object());
+        });
 
         assertEquals("There are no available connections.", ex.getMessage());
     }
