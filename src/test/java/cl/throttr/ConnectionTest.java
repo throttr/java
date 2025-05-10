@@ -45,21 +45,8 @@ class ConnectionTest {
 
     @Test
     void shouldThrowIfSocketIsClosedOnSend() throws Exception {
-        // Mock socket cerrado
-        Socket mockSocket = mock(Socket.class);
-        when(mockSocket.isClosed()).thenReturn(true);
-        when(mockSocket.getInputStream()).thenReturn(mock(InputStream.class));
-        when(mockSocket.getOutputStream()).thenReturn(mock(OutputStream.class));
-
-        Connection conn = new Connection("localhost", 1, ValueSize.UINT16) {
-            @Override
-            public Object send(Object request) throws IOException {
-                if (mockSocket.isClosed()) {
-                    throw new IOException("Socket is already closed");
-                }
-                return null;
-            }
-        };
+        Connection conn = new Connection("127.0.0.1", 9000, ValueSize.UINT16);
+        conn.close();
 
         IOException ex = assertThrows(IOException.class, () -> conn.send(new Object()));
         assertEquals("Socket is already closed", ex.getMessage());
