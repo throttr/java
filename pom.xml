@@ -9,7 +9,7 @@
     <version>3.0.0</version>
     <packaging>jar</packaging>
 
-    <name>Throttr SDK Java</name>
+    <name>Throttr SDK for Java</name>
     <description>Throttr SDK for Java to enable ultra-fast rate limiting.</description>
     <url>https://github.com/throttr/java</url>
 
