@@ -100,17 +100,13 @@ public class Connection implements AutoCloseable {
      * @return
      */
     private byte[] getRequestBuffer(Object request) {
-        if (request instanceof InsertRequest insert) {
-            return insert.toBytes(size);
-        } else if (request instanceof QueryRequest query) {
-            return query.toBytes();
-        } else if (request instanceof UpdateRequest update) {
-            return update.toBytes(size);
-        } else if (request instanceof PurgeRequest purge) {
-            return purge.toBytes();
-        } else {
-            throw new IllegalArgumentException("Unsupported request type");
-        }
+        return switch (request) {
+            case InsertRequest insert -> insert.toBytes(size);
+            case QueryRequest query -> query.toBytes();
+            case UpdateRequest update -> update.toBytes(size);
+            case PurgeRequest purge -> purge.toBytes();
+            case null, default -> throw new IllegalArgumentException("Unsupported request type");
+        };
     }
 
     /**
