@@ -15,10 +15,11 @@
 
 package cl.throttr;
 
+import cl.throttr.enums.ValueSize;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -46,6 +47,11 @@ public class Service implements AutoCloseable {
     private final int port;
 
     /**
+     * Value size
+     */
+    private final ValueSize size;
+
+    /**
      * Maximum connections
      */
     private final int maxConnections;
@@ -57,12 +63,13 @@ public class Service implements AutoCloseable {
      * @param port The Throttr remote port
      * @param maxConnections Number of pooled connections
      */
-    public Service(String host, int port, int maxConnections) {
+    public Service(String host, int port, ValueSize size, int maxConnections) {
         if (maxConnections <= 0) {
             throw new IllegalArgumentException("maxConnections must be greater than 0.");
         }
         this.host = host;
         this.port = port;
+        this.size = size;
         this.maxConnections = maxConnections;
     }
 
@@ -73,7 +80,7 @@ public class Service implements AutoCloseable {
      */
     public void connect() throws IOException {
         for (int i = 0; i < maxConnections; i++) {
-            Connection conn = new Connection(host, port);
+            Connection conn = new Connection(host, port, size);
             connections.add(conn);
         }
     }
@@ -82,31 +89,30 @@ public class Service implements AutoCloseable {
      * Send
      *
      * @param request Requests
-     * @return CompletableFuture<Object>
+     * @return Object
      */
-    public CompletableFuture<Object> send(Object request) {
+    public Object send(Object request) throws IOException {
         if (connections.isEmpty()) {
-            CompletableFuture<Object> future = new CompletableFuture<>();
-            future.completeExceptionally(new IllegalStateException("No available connections."));
-            return future;
+            throw new IllegalStateException("There are no available connections.");
         }
-
         int index = roundRobinIndex.getAndUpdate(i -> (i + 1) % connections.size());
         Connection conn = connections.get(index);
-        return conn.send(request);
+        synchronized (conn) {
+            try {
+                return conn.send(request);
+            } catch (Exception e) {
+                throw new IOException("Unexpected error in connection send", e);
+            }
+        }
     }
 
     /**
      * Close
      */
     @Override
-    public void close() {
+    public void close() throws IOException {
         for (Connection conn : connections) {
-            try {
-                conn.close();
-            } catch (IOException e) {
-                // Silent close
-            }
+            conn.close();
         }
         connections.clear();
     }

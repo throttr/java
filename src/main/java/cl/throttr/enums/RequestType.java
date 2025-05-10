@@ -13,21 +13,51 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-package cl.throttr;
+package cl.throttr.enums;
 
 /**
- * Attribute types
+ * Request types
  */
-public enum AttributeType {
-    QUOTA(0),
-    TTL(1);
+public enum RequestType {
+    /**
+     * Insert
+     */
+    INSERT(0x01),
 
+    /**
+     * Query
+     */
+    QUERY(0x02),
+
+    /**
+     * Update
+     */
+    UPDATE(0x03),
+
+    /**
+     * Purge
+     */
+    PURGE(0x04);
+
+    /**
+     * Value
+     */
     private final int value;
 
-    AttributeType(int value) {
+    /**
+     * Constructor
+     *
+     * @param value
+     */
+    RequestType(int value) {
         this.value = value;
     }
 
+    /**
+     * Get value
+     *
+     * @return int
+     */
     public int getValue() {
         return value;
     }

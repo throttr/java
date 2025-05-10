@@ -15,106 +15,172 @@
 
 package cl.throttr;
 
+import cl.throttr.enums.ValueSize;
+import cl.throttr.requests.*;
+import cl.throttr.responses.FullResponse;
+import cl.throttr.responses.SimpleResponse;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
-import java.util.LinkedList;
-import java.util.Queue;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * Connection
  */
 public class Connection implements AutoCloseable {
+    /**
+     * Socket
+     */
     private final Socket socket;
-    private final Queue<PendingRequest> queue = new LinkedList<>();
-    private boolean busy = false;
 
-    public Connection(String host, int port) throws IOException {
+    /**
+     * Size
+     */
+    private final ValueSize size;
+
+    /**
+     * Out
+     */
+    private final OutputStream out;
+
+    /**
+     * In
+     */
+    private final InputStream in;
+
+    /**
+     * Constructor
+     *
+     * @param host
+     * @param port
+     * @param size
+     * @throws IOException
+     */
+    public Connection(String host, int port, ValueSize size) throws IOException {
         this.socket = new Socket(host, port);
+        this.socket.setTcpNoDelay(true);
+        this.out = socket.getOutputStream();
+        this.in = socket.getInputStream();
+        this.size = size;
     }
 
-    public CompletableFuture<Object> send(Object request) {
-        byte[] buffer;
-        int expectedSize;
-        boolean expectFullResponse;
-
-        switch (request) {
-            case InsertRequest insert -> {
-                buffer = insert.toBytes();
-                expectedSize = 18;
-                expectFullResponse = true;
-            }
-            case QueryRequest query -> {
-                buffer = query.toBytes();
-                expectedSize = 18;
-                expectFullResponse = true;
-            }
-            case UpdateRequest update -> {
-                buffer = update.toBytes();
-                expectedSize = 1;
-                expectFullResponse = false;
-            }
-            case PurgeRequest purge -> {
-                buffer = purge.toBytes();
-                expectedSize = 1;
-                expectFullResponse = false;
-            }
-            default -> throw new IllegalArgumentException("Unsupported request type: " + request.getClass());
+    /**
+     * Send
+     *
+     * @param request
+     * @return
+     * @throws IOException
+     */
+    public Object send(Object request) throws IOException {
+        if (socket.isClosed()) {
+            throw new IOException("Socket is already closed");
         }
 
-        CompletableFuture<Object> future = new CompletableFuture<>();
-        synchronized (queue) {
-            queue.add(new PendingRequest(buffer, future, expectedSize, expectFullResponse));
-            processQueue();
+        byte[] buffer = getRequestBuffer(request);
+        boolean expectFullResponse = expectsFullResponse(request);
+
+        out.write(buffer);
+        out.flush();
+
+        int head = in.read();
+        if (head == -1) {
+            throw new IOException("Connection closed while reading response head.");
         }
-        return future;
+
+        return expectFullResponse && head == 0x01
+                ? readFullResponse(head)
+                : readSimpleResponse(head);
     }
 
-    private void processQueue() {
-        synchronized (queue) {
-            if (busy || queue.isEmpty()) {
-                return;
-            }
-
-            PendingRequest pending = queue.poll();
-            busy = true;
-
-            try {
-                OutputStream out = socket.getOutputStream();
-                out.write(pending.getBuffer());
-                out.flush();
-
-                InputStream in = socket.getInputStream();
-                byte[] responseBytes = new byte[pending.getExpectedSize()];
-                int totalRead = 0;
-
-                while (totalRead < pending.getExpectedSize()) {
-                    int read = in.read(responseBytes, totalRead, pending.getExpectedSize() - totalRead);
-                    if (read == -1) {
-                        throw new IOException("Connection closed before full response received");
-                    }
-                    totalRead += read;
-                }
-
-                Object response;
-                if (pending.isExpectFullResponse()) {
-                    response = FullResponse.fromBytes(responseBytes);
-                } else {
-                    response = SimpleResponse.fromBytes(responseBytes);
-                }
-
-                pending.getFuture().complete(response);
-            } catch (IOException e) {
-                pending.getFuture().completeExceptionally(e);
-            } finally {
-                busy = false;
-                processQueue();
-            }
+    /**
+     * Get request buffer
+     *
+     * @param request
+     * @return
+     */
+    private byte[] getRequestBuffer(Object request) {
+        if (request instanceof InsertRequest insert) {
+            return insert.toBytes(size);
+        } else if (request instanceof QueryRequest query) {
+            return query.toBytes();
+        } else if (request instanceof UpdateRequest update) {
+            return update.toBytes(size);
+        } else if (request instanceof PurgeRequest purge) {
+            return purge.toBytes();
+        } else {
+            throw new IllegalArgumentException("Unsupported request type");
         }
     }
 
+    /**
+     * Expects full response
+     *
+     * @param request
+     * @return bool
+     */
+    private boolean expectsFullResponse(Object request) {
+        return request instanceof QueryRequest;
+    }
+
+    /**
+     * Read full response
+     *
+     * @param head
+     * @return SimpleResponse
+     * @throws IOException
+     */
+    private FullResponse readFullResponse(int head) throws IOException {
+        int expected = size.getValue() * 2 + 1;
+        byte[] merged = new byte[expected];
+        int offset = 0;
+
+        while (offset < expected) {
+            int read = in.read(merged, offset, expected - offset);
+            if (read == -1) {
+                throw new IOException("Unexpected EOF while reading full response.");
+            }
+            offset += read;
+        }
+
+        byte[] full = new byte[1 + expected];
+        full[0] = (byte) head;
+        System.arraycopy(merged, 0, full, 1, expected);
+
+        clearResidualInput();
+        return FullResponse.fromBytes(full, size);
+    }
+
+    /**
+     * Read simple response
+     *
+     * @param head
+     * @return SimpleResponse
+     * @throws IOException
+     */
+    private SimpleResponse readSimpleResponse(int head) throws IOException {
+        clearResidualInput();
+        return new SimpleResponse(head == 0x01);
+    }
+
+    /**
+     * Clear residual input
+     *
+     * @throws IOException
+     */
+    private void clearResidualInput() throws IOException {
+        while (in.available() > 0) {
+            byte[] residual = new byte[Math.min(in.available(), 64)];
+            int readBytes = in.read(residual);
+            if (readBytes <= 0) break;
+        }
+    }
+
+    /**
+     * Close
+     *
+     * @throws IOException
+     */
     @Override
     public void close() throws IOException {
         socket.close();
