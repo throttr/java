@@ -40,7 +40,7 @@ public final class Binary {
             case UINT8 -> buffer.put((byte) value);
             case UINT16 -> buffer.putShort((short) value);
             case UINT32 -> buffer.putInt((int) value);
-            case UINT64 -> buffer.putLong(value);
+            default -> buffer.putLong(value);
         }
     }
 

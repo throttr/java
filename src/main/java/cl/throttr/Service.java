@@ -98,11 +98,7 @@ public class Service implements AutoCloseable {
         int index = roundRobinIndex.getAndUpdate(i -> (i + 1) % connections.size());
         Connection conn = connections.get(index);
         synchronized (conn) {
-            try {
-                return conn.send(request);
-            } catch (Exception e) {
-                throw new IOException("Unexpected error in connection send", e);
-            }
+            return conn.send(request);
         }
     }
 
