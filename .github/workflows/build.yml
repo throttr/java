@@ -45,7 +45,7 @@ jobs:
 
       - name: Build and test
         if: ${{ github.ref_type != 'tag' }}
-        run: mvn -x clean verify
+        run: mvn clean verify -X
         env:
           THROTTR_SIZE: ${{ matrix.size }}
 
