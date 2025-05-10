@@ -92,7 +92,7 @@
                     <execution>
                         <id>prepare-agent</id>
                         <goals>
-                            <goal>prepare-agent-instrumented</goal>
+                            <goal>instrument</goal>
                         </goals>
                     </execution>
                     <execution>
