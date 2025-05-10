@@ -46,6 +46,7 @@ package your.source;
 import java.util.concurrent.CompletableFuture;
 
 import cl.throttr.Service;
+import cl.throttr.enums.ValueSize;
 import cl.throttr.requests.InsertRequest;
 import cl.throttr.requests.QueryRequest;
 import cl.throttr.requests.UpdateRequest;
@@ -59,54 +60,76 @@ import cl.throttr.responses.SimpleResponse;
 public class ExampleUsage {
 
     public static void main(String[] args) {
-        Service service = new Service("127.0.0.1", 9000, 4); // Max connections = 4
+        Service service = new Service("127.0.0.1", 9000, ValueSize.UINT16, 1);
+        service.connect();
 
-        try {
-            // Connect to Throttr
-            service.connect();
+        String key = UUID.randomUUID().toString();
 
-            // Define a consumer and resource
-            String key = "127.0.0.1:1234|GET /api/resource";
+        // INSERT with quota=7 and ttl=60
+        SimpleResponse insert = (SimpleResponse) service.send(new InsertRequest(7, TTLType.SECONDS, 60, key));
+        System.out.println("Insert has been success: " + insert.success());
 
-            // Insert quota
-            CompletableFuture<Object> insertFuture = service.send(new InsertRequest(
-                    5L, TTLType.Milliseconds, 3000L, key
-            ));
-            SimpleResponse insertResponse = (SimpleResponse) insertFuture.get();
+        // QUERY and validate
+        FullResponse q1 = (FullResponse) service.send(new QueryRequest(key));
+        System.out.println("Key exists: " + q1.success());
+        System.out.println("Quota is 7: " + q1.quota() == 7);
+        System.out.println("TTL type is seconds: " + q1.ttlType() == TTLType.SECONDS);
+        System.out.println("TTL is between 0 and 60: " + (q1.ttl() > 0 && q1.ttl() < 60));
 
-            System.out.println("Allowed: " + insertResponse.success());
+        // UPDATE: DECREASE quota by 7
+        SimpleResponse dec1 = (SimpleResponse) service.send(new UpdateRequest(AttributeType.QUOTA, ChangeType.DECREASE, 7, key));
+        System.out.println("Quota has been decreased: " + dec1.success());
 
-            // Update the quota
-            CompletableFuture<Object> updateFuture = service.send(new UpdateRequest(
-                    AttributeType.QUOTA, ChangeType.DECREASE, 1L, key
-            ));
-            SimpleResponse updateResponse = (SimpleResponse) updateFuture.get();
-            System.out.println("Quota updated successfully: " + updateResponse.success());
+        // UPDATE: DECREASE quota again -> should fail
+        SimpleResponse dec2 = (SimpleResponse) service.send(new UpdateRequest(AttributeType.QUOTA, ChangeType.DECREASE, 7, key));
+        System.out.println("Quota has been decreased: " + dec2.success());
 
-            // Query the quota
-            CompletableFuture<Object> queryFuture = service.send(new QueryRequest(
-                    consumerId, resourceId
-            ));
-            FullResponse queryResponse = (FullResponse) queryFuture.get();
+        // QUERY -> quota should be 0
+        FullResponse q2 = (FullResponse) service.send(new QueryRequest(key));
+        System.out.println("Quota is 0: " + q2.quota() == 0);
 
-            System.out.println("Allowed after update: " + queryResponse.success());
-            System.out.println("Remaining after update: " + queryResponse.quota());
-            System.out.println("TTL type: " + queryResponse.ttlType());
-            System.out.println("TTL after update: " + queryResponse.ttl());
+        // UPDATE: PATCH quota to 10
+        SimpleResponse patchQuota = (SimpleResponse) service.send(new UpdateRequest(AttributeType.QUOTA, ChangeType.PATCH, 10, key));
+        System.out.println("Quota has been patched: " + patchQuota.success());
 
-            // Optionally, purge the quota
-            CompletableFuture<Object> purgeFuture = service.send(new PurgeRequest(
-                    consumerId, resourceId
-            ));
-            SimpleResponse purgeResponse = (SimpleResponse) purgeFuture.get();
-            System.out.println("Purge success: " + purgeResponse.success());
+        // QUERY -> quota should be 10
+        FullResponse q3 = (FullResponse) service.send(new QueryRequest(key));
+        System.out.println("Quota is 10: " + q3.quota() == 10);
 
-        } catch (Exception e) {
-            e.printStackTrace();
-        } finally {
-            // Disconnect once done
-            service.close();
-        }
+        // UPDATE: INCREASE quota by 20 -> should be 30
+        SimpleResponse incQuota = (SimpleResponse) service.send(new UpdateRequest(AttributeType.QUOTA, ChangeType.INCREASE, 20, key));
+        System.out.println("Quota has been increased: " + incQuota.success());
+
+        // QUERY -> quota should be 30
+        FullResponse q4 = (FullResponse) service.send(new QueryRequest(key));
+        System.out.println("Quota is equals to 30: " + q4.quota() == 30);
+
+        // UPDATE: INCREASE TTL by 60 -> ttl > 60 and < 120
+        SimpleResponse incTtl = (SimpleResponse) service.send(new UpdateRequest(AttributeType.TTL, ChangeType.INCREASE, 60, key));
+        System.out.println("TTL has been increased: " + incTtl.success());
+
+        FullResponse q5 = (FullResponse) service.send(new QueryRequest(key));
+        System.out.println("TTL is between 60 and 120: " + (q5.ttl() > 60 && q5.ttl() < 120));
+
+        // UPDATE: DECREASE TTL by 60 -> ttl < 60
+        SimpleResponse decTtl = (SimpleResponse) service.send(new UpdateRequest(AttributeType.TTL, ChangeType.DECREASE, 60, key));
+        System.out.println("TTL has been decrease: " + decTtl.success());
+
+        FullResponse q6 = (FullResponse) service.send(new QueryRequest(key));
+        System.out("TTL is between 0 and 60: " + (q6.ttl() > 0 && q6.ttl() < 60));
+
+        // UPDATE: PATCH TTL to 90 -> ttl ~90
+        SimpleResponse patchTtl = (SimpleResponse) service.send(new UpdateRequest(AttributeType.TTL, ChangeType.PATCH, 90, key));
+        System.out("TTL has been patched: " + patchTtl.success());
+
+        FullResponse q7 = (FullResponse) service.send(new QueryRequest(key));
+        System.out.println("TTL is between 60 and 90" + (q7.ttl() > 60 && q7.ttl() <= 90));
+
+        // PURGE
+        SimpleResponse purge = (SimpleResponse) service.send(new PurgeRequest(key));
+        System.out.println("Key has been purged: " + purge.success());
+
+        service.close();
     }
 }
 ```
@@ -117,7 +140,7 @@ public class ExampleUsage {
 
 - The protocol assumes Little Endian architecture.
 - The internal message queue ensures requests are processed sequentially.
-- The package is defined to works with protocol 4.0.10 or greatest.
+- The package is defined to works with protocol 4.0.11 or greatest.
 
 ---
 
