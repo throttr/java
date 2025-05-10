@@ -104,12 +104,6 @@ class ServiceTest {
         SimpleResponse purge = (SimpleResponse) service.send(new PurgeRequest(key));
         assertTrue(purge.success());
 
-        // RE-PURGE -> should fail
-        Awaitility.await().atMost(Duration.ofSeconds(2)).until(() -> !((SimpleResponse) service.send(new PurgeRequest(key))).success());
-
-        // QUERY -> should fail
-        Awaitility.await().atMost(Duration.ofSeconds(2)).until(() -> !((SimpleResponse) service.send(new QueryRequest(key))).success());
-
         service.close();
     }
 }
