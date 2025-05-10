@@ -28,7 +28,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class ServiceTest {
+class ServiceTest {
 
     @Test
     void shouldBeProtocolCompliant() throws Exception {
