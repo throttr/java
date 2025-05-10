@@ -121,14 +121,14 @@ class ServiceTest {
     void shouldThrowIfMaxConnectionsIsZero() {
         IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
-                () -> new Service("localhost", 5555, ValueSize.UINT16, 0)
+                () -> new Service("127.0.0.1", 9000, ValueSize.UINT16, 0)
         );
         assertEquals("maxConnections must be greater than 0.", ex.getMessage());
     }
 
     @Test
     void shouldThrowIfSendCalledWithoutConnect() throws IOException {
-        Service service = new Service("localhost", 5555, ValueSize.UINT16, 1);
+        Service service = new Service("127.0.0.1", 9000, ValueSize.UINT16, 1);
 
         IllegalStateException ex = assertThrows(
                 IllegalStateException.class,
