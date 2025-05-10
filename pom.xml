@@ -90,18 +90,10 @@
                 </configuration>
                 <executions>
                     <execution>
-                        <id>instrument</id>
+                        <id>prepare-agent</id>
                         <goals>
-                            <goal>instrument</goal>
+                            <goal>prepare-agent-instrumented</goal>
                         </goals>
-                        <phase>process-classes</phase>
-                    </execution>
-                    <execution>
-                        <id>restore</id>
-                        <goals>
-                            <goal>restore-instrumented-classes</goal>
-                        </goals>
-                        <phase>prepare-package</phase>
                     </execution>
                     <execution>
                         <id>report</id>
