@@ -149,6 +149,8 @@ class ServiceTest {
         // GET again -> should fail
         GetResponse getAfterPurge = (GetResponse) service.send(new GetRequest(key));
         assertFalse(getAfterPurge.success());
+
+        service.close();
     }
 
     @Test
