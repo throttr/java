@@ -28,7 +28,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 
 /**
  * Connection
@@ -83,7 +82,6 @@ public class Connection implements AutoCloseable {
         }
 
         byte[] buffer = getRequestBuffer(request, size);
-        boolean expectQueryResponse = expectsQueryResponse(request);
 
         out.write(buffer);
         out.flush();
@@ -119,16 +117,6 @@ public class Connection implements AutoCloseable {
             case GetRequest get -> get.toBytes();
             case null, default -> throw new IllegalArgumentException("Unsupported request type");
         };
-    }
-
-    /**
-     * Expects full response
-     *
-     * @param request
-     * @return bool
-     */
-    private boolean expectsQueryResponse(Object request) {
-        return request instanceof QueryRequest;
     }
 
     /**
@@ -193,8 +181,8 @@ public class Connection implements AutoCloseable {
         ByteBuffer buffer = ByteBuffer.wrap(header);
         buffer.order(java.nio.ByteOrder.LITTLE_ENDIAN);
 
-        TTLType ttlType = TTLType.fromByte(buffer.get());
-        long ttl = Binary.read(buffer, size);
+        TTLType.fromByte(buffer.get());
+        Binary.read(buffer, size);
         long valueSize = Binary.read(buffer, size);
 
         if (valueSize > Integer.MAX_VALUE) {
