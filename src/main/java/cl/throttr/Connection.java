@@ -17,8 +17,8 @@ package cl.throttr;
 
 import cl.throttr.enums.ValueSize;
 import cl.throttr.requests.*;
-import cl.throttr.responses.FullResponse;
-import cl.throttr.responses.SimpleResponse;
+import cl.throttr.responses.QueryResponse;
+import cl.throttr.responses.StatusResponse;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -127,7 +127,7 @@ public class Connection implements AutoCloseable {
      * @return SimpleResponse
      * @throws IOException
      */
-    private FullResponse readFullResponse(int head) throws IOException {
+    private QueryResponse readFullResponse(int head) throws IOException {
         int expected = size.getValue() * 2 + 1;
         byte[] merged = new byte[expected];
         int offset = 0;
@@ -145,7 +145,7 @@ public class Connection implements AutoCloseable {
         System.arraycopy(merged, 0, full, 1, expected);
 
         clearResidualInput();
-        return FullResponse.fromBytes(full, size);
+        return QueryResponse.fromBytes(full, size);
     }
 
     /**
@@ -155,9 +155,9 @@ public class Connection implements AutoCloseable {
      * @return SimpleResponse
      * @throws IOException
      */
-    private SimpleResponse readSimpleResponse(int head) throws IOException {
+    private StatusResponse readSimpleResponse(int head) throws IOException {
         clearResidualInput();
-        return new SimpleResponse(head == 0x01);
+        return new StatusResponse(head == 0x01);
     }
 
     /**

@@ -18,7 +18,7 @@ package cl.throttr.responses;
 /**
  * Simple response
  */
-public record SimpleResponse(
+public record StatusResponse(
         boolean success
 ) {
     /**
@@ -27,10 +27,10 @@ public record SimpleResponse(
      * @param data Byte array
      * @return SimpleResponse
      */
-    public static SimpleResponse fromBytes(byte[] data) {
+    public static StatusResponse fromBytes(byte[] data) {
         if (data.length != 1) {
             throw new IllegalArgumentException("Invalid SimpleResponse length: " + data.length);
         }
-        return new SimpleResponse(data[0] == 1);
+        return new StatusResponse(data[0] == 1);
     }
 }

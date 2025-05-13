@@ -1,23 +1,23 @@
 package cl.throttr;
 
-import cl.throttr.responses.SimpleResponse;
+import cl.throttr.responses.StatusResponse;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class SimpleResponseTest {
+class StatusResponseTest {
 
     @Test
     void shouldParseTrueFromByteOne() {
         byte[] data = {1};
-        SimpleResponse response = SimpleResponse.fromBytes(data);
+        StatusResponse response = StatusResponse.fromBytes(data);
         assertTrue(response.success());
     }
 
     @Test
     void shouldParseFalseFromByteZero() {
         byte[] data = {0};
-        SimpleResponse response = SimpleResponse.fromBytes(data);
+        StatusResponse response = StatusResponse.fromBytes(data);
         assertFalse(response.success());
     }
 
@@ -26,7 +26,7 @@ class SimpleResponseTest {
         byte[] data = {};
         IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
-                () -> SimpleResponse.fromBytes(data)
+                () -> StatusResponse.fromBytes(data)
         );
         assertEquals("Invalid SimpleResponse length: 0", ex.getMessage());
     }
@@ -36,7 +36,7 @@ class SimpleResponseTest {
         byte[] data = {1, 0};
         IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
-                () -> SimpleResponse.fromBytes(data)
+                () -> StatusResponse.fromBytes(data)
         );
         assertEquals("Invalid SimpleResponse length: 2", ex.getMessage());
     }
