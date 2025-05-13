@@ -13,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class QueryResponseTest {
 
     @Test
-    void shouldParseValidFullResponseWithSuccessTrue() {
+    void shouldParseValidQueryResponseWithSuccessTrue() {
         ByteBuffer buffer = ByteBuffer.allocate(1 + 2 + 1 + 2).order(ByteOrder.LITTLE_ENDIAN);
         buffer.put((byte) 1);                // success
         buffer.putShort((short) 1234);       // quota
@@ -29,7 +29,7 @@ class QueryResponseTest {
     }
 
     @Test
-    void shouldParseValidFullResponseWithSuccessFalse() {
+    void shouldParseValidQueryResponseWithSuccessFalse() {
         ByteBuffer buffer = ByteBuffer.allocate(1 + 2 + 1 + 2).order(ByteOrder.LITTLE_ENDIAN);
         buffer.put((byte) 0);                // success
         buffer.putShort((short) 4321);       // quota
@@ -53,6 +53,6 @@ class QueryResponseTest {
                 () -> QueryResponse.fromBytes(data, ValueSize.UINT16)
         );
 
-        assertEquals("Invalid FullResponse length: 5", ex.getMessage());
+        assertEquals("Invalid QueryResponse length: 5", ex.getMessage());
     }
 }

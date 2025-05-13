@@ -28,7 +28,7 @@ class StatusResponseTest {
                 IllegalArgumentException.class,
                 () -> StatusResponse.fromBytes(data)
         );
-        assertEquals("Invalid SimpleResponse length: 0", ex.getMessage());
+        assertEquals("Invalid StatusResponse length: 0", ex.getMessage());
     }
 
     @Test
@@ -38,6 +38,6 @@ class StatusResponseTest {
                 IllegalArgumentException.class,
                 () -> StatusResponse.fromBytes(data)
         );
-        assertEquals("Invalid SimpleResponse length: 2", ex.getMessage());
+        assertEquals("Invalid StatusResponse length: 2", ex.getMessage());
     }
 }

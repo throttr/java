@@ -15,15 +15,20 @@
 
 package cl.throttr;
 
+import cl.throttr.enums.TTLType;
 import cl.throttr.enums.ValueSize;
 import cl.throttr.requests.*;
+import cl.throttr.responses.GetResponse;
 import cl.throttr.responses.QueryResponse;
 import cl.throttr.responses.StatusResponse;
+import cl.throttr.utils.Binary;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
 /**
  * Connection
@@ -78,7 +83,7 @@ public class Connection implements AutoCloseable {
         }
 
         byte[] buffer = getRequestBuffer(request, size);
-        boolean expectFullResponse = expectsFullResponse(request);
+        boolean expectQueryResponse = expectsQueryResponse(request);
 
         out.write(buffer);
         out.flush();
@@ -88,9 +93,13 @@ public class Connection implements AutoCloseable {
             throw new IOException("Connection closed while reading response head.");
         }
 
-        return expectFullResponse && head == 0x01
-                ? readFullResponse(head)
-                : readSimpleResponse(head);
+        int type = Byte.toUnsignedInt(buffer[0]);
+
+        return switch (type) {
+            case 0x02 -> readQueryResponse(head);
+            case 0x06 -> readGetResponse(head);
+            default -> readStatusResponse(head);
+        };
     }
 
     /**
@@ -106,6 +115,8 @@ public class Connection implements AutoCloseable {
             case QueryRequest query -> query.toBytes();
             case UpdateRequest update -> update.toBytes(size);
             case PurgeRequest purge -> purge.toBytes();
+            case SetRequest set -> set.toBytes(size);
+            case GetRequest get -> get.toBytes();
             case null, default -> throw new IllegalArgumentException("Unsupported request type");
         };
     }
@@ -116,7 +127,7 @@ public class Connection implements AutoCloseable {
      * @param request
      * @return bool
      */
-    private boolean expectsFullResponse(Object request) {
+    private boolean expectsQueryResponse(Object request) {
         return request instanceof QueryRequest;
     }
 
@@ -124,10 +135,10 @@ public class Connection implements AutoCloseable {
      * Read full response
      *
      * @param head
-     * @return SimpleResponse
+     * @return StatusResponse
      * @throws IOException
      */
-    private QueryResponse readFullResponse(int head) throws IOException {
+    private QueryResponse readQueryResponse(int head) throws IOException {
         int expected = size.getValue() * 2 + 1;
         byte[] merged = new byte[expected];
         int offset = 0;
@@ -149,13 +160,69 @@ public class Connection implements AutoCloseable {
     }
 
     /**
+     * Read get response
+     *
+     * @param head
+     * @return GetResponse
+     * @throws IOException
+     */
+    private GetResponse readGetResponse(int head) throws IOException {
+        if (head != 0x01) {
+            clearResidualInput();
+            return new GetResponse(false, null, 0, null);
+        }
+
+        // Total: 1 byte (ttlType) + N bytes (ttl) + N bytes (valueSize)
+        int headerSize = 1 + size.getValue() + size.getValue();
+        byte[] header = new byte[headerSize];
+        int offset = 0;
+
+        while (offset < headerSize) {
+            int read = in.read(header, offset, headerSize - offset);
+            if (read == -1) {
+                throw new IOException("Unexpected EOF while reading GET header");
+            }
+            offset += read;
+        }
+
+        ByteBuffer buffer = ByteBuffer.wrap(header);
+        buffer.order(java.nio.ByteOrder.LITTLE_ENDIAN);
+
+        TTLType ttlType = TTLType.fromByte(buffer.get());
+        long ttl = Binary.read(buffer, size);
+        long valueSize = Binary.read(buffer, size);
+
+        if (valueSize > Integer.MAX_VALUE) {
+            throw new IOException("Value too large to handle in memory: " + valueSize);
+        }
+
+        byte[] value = new byte[(int) valueSize];
+        offset = 0;
+        while (offset < value.length) {
+            int read = in.read(value, offset, value.length - offset);
+            if (read == -1) {
+                throw new IOException("Unexpected EOF while reading GET value");
+            }
+            offset += read;
+        }
+
+        byte[] full = new byte[1 + header.length + value.length];
+        full[0] = (byte) head;
+        System.arraycopy(header, 0, full, 1, header.length);
+        System.arraycopy(value, 0, full, 1 + header.length, value.length);
+
+        clearResidualInput();
+        return GetResponse.fromBytes(full, size);
+    }
+
+    /**
      * Read simple response
      *
      * @param head
-     * @return SimpleResponse
+     * @return StatusResponse
      * @throws IOException
      */
-    private StatusResponse readSimpleResponse(int head) throws IOException {
+    private StatusResponse readStatusResponse(int head) throws IOException {
         clearResidualInput();
         return new StatusResponse(head == 0x01);
     }

@@ -117,6 +117,41 @@ class ServiceTest {
     }
 
     @Test
+    void shouldComplyWithGetAndSet() throws Exception {
+        ValueSize sized = ValueSize.UINT8;
+        String size = System.getenv().getOrDefault("THROTTR_SIZE", "uint16");
+        if ("uint16".equals(size)) sized = ValueSize.UINT16;
+        if ("uint32".equals(size)) sized = ValueSize.UINT32;
+        if ("uint64".equals(size)) sized = ValueSize.UINT64;
+
+        Service service = new Service("127.0.0.1", 9000, sized, 1);
+        service.connect();
+
+        String key = UUID.randomUUID().toString();
+        String value = "EHLO";
+        int ttl = 30;
+
+        // SET
+        StatusResponse set = (StatusResponse) service.send(new SetRequest(TTLType.SECONDS, ttl, key, value));
+        assertTrue(set.success());
+
+        // GET
+        GetResponse get = (GetResponse) service.send(new GetRequest(key));
+        assertTrue(get.success());
+        assertEquals(TTLType.SECONDS, get.ttlType());
+        assertTrue(get.ttl() > 0 && get.ttl() <= ttl);
+        assertEquals(value, new String(get.value())); // compara strings
+
+        // PURGE
+        StatusResponse purgeBuffer = (StatusResponse) service.send(new PurgeRequest(key));
+        assertTrue(purgeBuffer.success());
+
+        // GET again -> should fail
+        GetResponse getAfterPurge = (GetResponse) service.send(new GetRequest(key));
+        assertFalse(getAfterPurge.success());
+    }
+
+    @Test
     void shouldThrowIfMaxConnectionsIsZero() {
         IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,

@@ -25,11 +25,11 @@ import java.nio.ByteOrder;
 /**
  * Full response
  */
-public record QueryResponse(
+public record GetResponse(
         boolean success,
-        long quota,
         TTLType ttlType,
-        long ttl
+        long ttl,
+        byte[] value
 ) {
     /**
      * Parse from bytes
@@ -37,20 +37,30 @@ public record QueryResponse(
      * @param data Byte array (must be 18 bytes)
      * @return QueryResponse
      */
-    public static QueryResponse fromBytes(byte[] data, ValueSize size) {
-        int expected = 1 + size.getValue() + 1 + size.getValue();
-        if (data.length != expected) {
-            throw new IllegalArgumentException("Invalid QueryResponse length: " + data.length);
+    public static GetResponse fromBytes(byte[] data, ValueSize size) {
+        if (data.length < 1) {
+            throw new IllegalArgumentException("Invalid GetResponse: empty response");
         }
 
-        var buffer = ByteBuffer.wrap(data);
+        ByteBuffer buffer = ByteBuffer.wrap(data);
         buffer.order(ByteOrder.LITTLE_ENDIAN);
 
         boolean success = buffer.get() == 1;
-        long quota = Binary.read(buffer, size);
+        if (!success) {
+            return new GetResponse(false, null, 0, null);
+        }
+
         TTLType ttlType = TTLType.fromByte(buffer.get());
         long ttl = Binary.read(buffer, size);
+        long valueSize = Binary.read(buffer, size);
 
-        return new QueryResponse(success, quota, ttlType, ttl);
+        if (buffer.remaining() != valueSize) {
+            throw new IllegalArgumentException("Expected " + valueSize + " bytes for value but got " + buffer.remaining());
+        }
+
+        byte[] value = new byte[(int) valueSize];
+        buffer.get(value);
+
+        return new GetResponse(true, ttlType, ttl, value);
     }
 }

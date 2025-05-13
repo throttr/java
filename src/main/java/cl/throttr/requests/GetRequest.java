@@ -13,24 +13,37 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-package cl.throttr.responses;
+package cl.throttr.requests;
+
+import cl.throttr.enums.RequestType;
+
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.charset.StandardCharsets;
 
 /**
- * Simple response
+ * Get request
  */
-public record StatusResponse(
-        boolean success
+public record GetRequest(
+        String key
 ) {
     /**
-     * Parse from bytes
+     * To bytes
      *
-     * @param data Byte array
-     * @return StatusResponse
+     * @return byte[]
      */
-    public static StatusResponse fromBytes(byte[] data) {
-        if (data.length != 1) {
-            throw new IllegalArgumentException("Invalid StatusResponse length: " + data.length);
-        }
-        return new StatusResponse(data[0] == 1);
+    public byte[] toBytes() {
+        byte[] keyBytes = key.getBytes(StandardCharsets.UTF_8);
+
+        var buffer = ByteBuffer.allocate(
+                2 + keyBytes.length
+        );
+        buffer.order(ByteOrder.LITTLE_ENDIAN);
+
+        buffer.put((byte) RequestType.GET.getValue());
+        buffer.put((byte) keyBytes.length);
+        buffer.put(keyBytes);
+
+        return buffer.array();
     }
 }

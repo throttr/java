@@ -37,7 +37,17 @@ public enum RequestType {
     /**
      * Purge
      */
-    PURGE(0x04);
+    PURGE(0x04),
+
+    /**
+     * Set
+     */
+    SET(0x05),
+
+    /**
+     * Get
+     */
+    GET(0x06);
 
     /**
      * Value
