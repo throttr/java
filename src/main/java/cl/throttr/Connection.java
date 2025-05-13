@@ -139,6 +139,11 @@ public class Connection implements AutoCloseable {
      * @throws IOException
      */
     private QueryResponse readQueryResponse(int head) throws IOException {
+        if (head != 0x01) {
+            clearResidualInput();
+            return new QueryResponse(false, 0, TTLType.SECONDS, 0);
+        }
+
         int expected = size.getValue() * 2 + 1;
         byte[] merged = new byte[expected];
         int offset = 0;

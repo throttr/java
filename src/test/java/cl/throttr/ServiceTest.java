@@ -111,7 +111,7 @@ class ServiceTest {
         Awaitility.await().atMost(Duration.ofSeconds(2)).until(() -> !((StatusResponse) service.send(new PurgeRequest(key))).success());
 
         // QUERY -> should fail
-        Awaitility.await().atMost(Duration.ofSeconds(2)).until(() -> !((StatusResponse) service.send(new QueryRequest(key))).success());
+        Awaitility.await().atMost(Duration.ofSeconds(2)).until(() -> !((QueryResponse) service.send(new QueryRequest(key))).success());
 
         service.close();
     }
