@@ -40,11 +40,11 @@ public record GetResponse(
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof GetResponse that)) return false;
-        return success == that.success &&
-                ttl == that.ttl &&
-                ttlType == that.ttlType &&
-                java.util.Arrays.equals(value, that.value);
+        if (!(o instanceof GetResponse(var success, var ttlType, var ttl, var value))) return false;
+        return this.success == success &&
+                this.ttl == ttl &&
+                this.ttlType == ttlType &&
+                java.util.Arrays.equals(this.value, value);
     }
 
     /**
