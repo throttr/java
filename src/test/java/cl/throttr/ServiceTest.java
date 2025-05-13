@@ -43,75 +43,112 @@ class ServiceTest {
         String key = UUID.randomUUID().toString();
 
         // INSERT with quota=7 and ttl=60
-        SimpleResponse insert = (SimpleResponse) service.send(new InsertRequest(7, TTLType.SECONDS, 60, key));
+        StatusResponse insert = (StatusResponse) service.send(new InsertRequest(7, TTLType.SECONDS, 60, key));
         assertTrue(insert.success());
 
         // QUERY and validate
-        FullResponse q1 = (FullResponse) service.send(new QueryRequest(key));
+        QueryResponse q1 = (QueryResponse) service.send(new QueryRequest(key));
         assertTrue(q1.success());
         assertEquals(7, q1.quota());
         assertEquals(TTLType.SECONDS, q1.ttlType());
         assertTrue(q1.ttl() > 0 && q1.ttl() < 60);
 
         // UPDATE: DECREASE quota by 7
-        SimpleResponse dec1 = (SimpleResponse) service.send(new UpdateRequest(AttributeType.QUOTA, ChangeType.DECREASE, 7, key));
+        StatusResponse dec1 = (StatusResponse) service.send(new UpdateRequest(AttributeType.QUOTA, ChangeType.DECREASE, 7, key));
         assertTrue(dec1.success());
 
         // UPDATE: DECREASE quota again -> should fail
-        SimpleResponse dec2 = (SimpleResponse) service.send(new UpdateRequest(AttributeType.QUOTA, ChangeType.DECREASE, 7, key));
+        StatusResponse dec2 = (StatusResponse) service.send(new UpdateRequest(AttributeType.QUOTA, ChangeType.DECREASE, 7, key));
         assertFalse(dec2.success());
 
         // QUERY -> quota should be 0
-        FullResponse q2 = (FullResponse) service.send(new QueryRequest(key));
+        QueryResponse q2 = (QueryResponse) service.send(new QueryRequest(key));
         assertTrue(q2.success());
         assertEquals(0, q2.quota());
 
         // UPDATE: PATCH quota to 10
-        SimpleResponse patchQuota = (SimpleResponse) service.send(new UpdateRequest(AttributeType.QUOTA, ChangeType.PATCH, 10, key));
+        StatusResponse patchQuota = (StatusResponse) service.send(new UpdateRequest(AttributeType.QUOTA, ChangeType.PATCH, 10, key));
         assertTrue(patchQuota.success());
 
         // QUERY -> quota should be 10
-        FullResponse q3 = (FullResponse) service.send(new QueryRequest(key));
+        QueryResponse q3 = (QueryResponse) service.send(new QueryRequest(key));
         assertEquals(10, q3.quota());
 
         // UPDATE: INCREASE quota by 20 -> should be 30
-        SimpleResponse incQuota = (SimpleResponse) service.send(new UpdateRequest(AttributeType.QUOTA, ChangeType.INCREASE, 20, key));
+        StatusResponse incQuota = (StatusResponse) service.send(new UpdateRequest(AttributeType.QUOTA, ChangeType.INCREASE, 20, key));
         assertTrue(incQuota.success());
 
         // QUERY -> quota should be 30
-        FullResponse q4 = (FullResponse) service.send(new QueryRequest(key));
+        QueryResponse q4 = (QueryResponse) service.send(new QueryRequest(key));
         assertEquals(30, q4.quota());
 
         // UPDATE: INCREASE TTL by 60 -> ttl > 60 and < 120
-        SimpleResponse incTtl = (SimpleResponse) service.send(new UpdateRequest(AttributeType.TTL, ChangeType.INCREASE, 60, key));
+        StatusResponse incTtl = (StatusResponse) service.send(new UpdateRequest(AttributeType.TTL, ChangeType.INCREASE, 60, key));
         assertTrue(incTtl.success());
 
-        FullResponse q5 = (FullResponse) service.send(new QueryRequest(key));
+        QueryResponse q5 = (QueryResponse) service.send(new QueryRequest(key));
         assertTrue(q5.ttl() > 60 && q5.ttl() < 120);
 
         // UPDATE: DECREASE TTL by 60 -> ttl < 60
-        SimpleResponse decTtl = (SimpleResponse) service.send(new UpdateRequest(AttributeType.TTL, ChangeType.DECREASE, 60, key));
+        StatusResponse decTtl = (StatusResponse) service.send(new UpdateRequest(AttributeType.TTL, ChangeType.DECREASE, 60, key));
         assertTrue(decTtl.success());
 
-        FullResponse q6 = (FullResponse) service.send(new QueryRequest(key));
+        QueryResponse q6 = (QueryResponse) service.send(new QueryRequest(key));
         assertTrue(q6.ttl() > 0 && q6.ttl() < 60);
 
         // UPDATE: PATCH TTL to 90 -> ttl ~90
-        SimpleResponse patchTtl = (SimpleResponse) service.send(new UpdateRequest(AttributeType.TTL, ChangeType.PATCH, 90, key));
+        StatusResponse patchTtl = (StatusResponse) service.send(new UpdateRequest(AttributeType.TTL, ChangeType.PATCH, 90, key));
         assertTrue(patchTtl.success());
 
-        FullResponse q7 = (FullResponse) service.send(new QueryRequest(key));
+        QueryResponse q7 = (QueryResponse) service.send(new QueryRequest(key));
         assertTrue(q7.ttl() > 60 && q7.ttl() <= 90);
 
         // PURGE
-        SimpleResponse purge = (SimpleResponse) service.send(new PurgeRequest(key));
+        StatusResponse purge = (StatusResponse) service.send(new PurgeRequest(key));
         assertTrue(purge.success());
 
         // RE-PURGE -> should fail
-        Awaitility.await().atMost(Duration.ofSeconds(2)).until(() -> !((SimpleResponse) service.send(new PurgeRequest(key))).success());
+        Awaitility.await().atMost(Duration.ofSeconds(2)).until(() -> !((StatusResponse) service.send(new PurgeRequest(key))).success());
 
         // QUERY -> should fail
-        Awaitility.await().atMost(Duration.ofSeconds(2)).until(() -> !((SimpleResponse) service.send(new QueryRequest(key))).success());
+        Awaitility.await().atMost(Duration.ofSeconds(2)).until(() -> !((QueryResponse) service.send(new QueryRequest(key))).success());
+
+        service.close();
+    }
+
+    @Test
+    void shouldComplyWithGetAndSet() throws Exception {
+        ValueSize sized = ValueSize.UINT8;
+        String size = System.getenv().getOrDefault("THROTTR_SIZE", "uint16");
+        if ("uint16".equals(size)) sized = ValueSize.UINT16;
+        if ("uint32".equals(size)) sized = ValueSize.UINT32;
+        if ("uint64".equals(size)) sized = ValueSize.UINT64;
+
+        Service service = new Service("127.0.0.1", 9000, sized, 1);
+        service.connect();
+
+        String key = UUID.randomUUID().toString();
+        String value = "EHLO";
+        int ttl = 30;
+
+        // SET
+        StatusResponse set = (StatusResponse) service.send(new SetRequest(TTLType.SECONDS, ttl, key, value));
+        assertTrue(set.success());
+
+        // GET
+        GetResponse get = (GetResponse) service.send(new GetRequest(key));
+        assertTrue(get.success());
+        assertEquals(TTLType.SECONDS, get.ttlType());
+        assertTrue(get.ttl() > 0 && get.ttl() <= ttl);
+        assertEquals(value, new String(get.value()));
+
+        // PURGE
+        StatusResponse purgeBuffer = (StatusResponse) service.send(new PurgeRequest(key));
+        assertTrue(purgeBuffer.success());
+
+        // GET again -> should fail
+        GetResponse getAfterPurge = (GetResponse) service.send(new GetRequest(key));
+        assertFalse(getAfterPurge.success());
 
         service.close();
     }

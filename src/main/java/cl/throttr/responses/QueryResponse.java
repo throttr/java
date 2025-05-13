@@ -25,7 +25,7 @@ import java.nio.ByteOrder;
 /**
  * Full response
  */
-public record FullResponse(
+public record QueryResponse(
         boolean success,
         long quota,
         TTLType ttlType,
@@ -35,12 +35,12 @@ public record FullResponse(
      * Parse from bytes
      *
      * @param data Byte array (must be 18 bytes)
-     * @return FullResponse
+     * @return QueryResponse
      */
-    public static FullResponse fromBytes(byte[] data, ValueSize size) {
+    public static QueryResponse fromBytes(byte[] data, ValueSize size) {
         int expected = 1 + size.getValue() + 1 + size.getValue();
         if (data.length != expected) {
-            throw new IllegalArgumentException("Invalid FullResponse length: " + data.length);
+            throw new IllegalArgumentException("Invalid QueryResponse length: " + data.length);
         }
 
         var buffer = ByteBuffer.wrap(data);
@@ -51,6 +51,6 @@ public record FullResponse(
         TTLType ttlType = TTLType.fromByte(buffer.get());
         long ttl = Binary.read(buffer, size);
 
-        return new FullResponse(success, quota, ttlType, ttl);
+        return new QueryResponse(success, quota, ttlType, ttl);
     }
 }

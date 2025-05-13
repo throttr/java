@@ -6,11 +6,11 @@
 
     <groupId>cl.throttr</groupId>
     <artifactId>sdk</artifactId>
-    <version>3.0.0</version>
+    <version>4.0.0</version>
     <packaging>jar</packaging>
 
     <name>Throttr SDK for Java</name>
-    <description>Throttr SDK for Java to enable ultra-fast rate limiting.</description>
+    <description>Throttr SDK for Java to enable ultra-fast in-memory database and rate limiting.</description>
     <url>https://github.com/throttr/java</url>
 
     <licenses>

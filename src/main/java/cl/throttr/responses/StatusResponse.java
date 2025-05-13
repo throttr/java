@@ -18,19 +18,19 @@ package cl.throttr.responses;
 /**
  * Simple response
  */
-public record SimpleResponse(
+public record StatusResponse(
         boolean success
 ) {
     /**
      * Parse from bytes
      *
      * @param data Byte array
-     * @return SimpleResponse
+     * @return StatusResponse
      */
-    public static SimpleResponse fromBytes(byte[] data) {
+    public static StatusResponse fromBytes(byte[] data) {
         if (data.length != 1) {
-            throw new IllegalArgumentException("Invalid SimpleResponse length: " + data.length);
+            throw new IllegalArgumentException("Invalid StatusResponse length: " + data.length);
         }
-        return new SimpleResponse(data[0] == 1);
+        return new StatusResponse(data[0] == 1);
     }
 }

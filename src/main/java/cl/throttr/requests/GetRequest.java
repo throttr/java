@@ -13,62 +13,37 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-package cl.throttr.enums;
+package cl.throttr.requests;
+
+import cl.throttr.enums.RequestType;
+
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.charset.StandardCharsets;
 
 /**
- * Request types
+ * Get request
  */
-public enum RequestType {
+public record GetRequest(
+        String key
+) {
     /**
-     * Insert
-     */
-    INSERT(0x01),
-
-    /**
-     * Query
-     */
-    QUERY(0x02),
-
-    /**
-     * Update
-     */
-    UPDATE(0x03),
-
-    /**
-     * Purge
-     */
-    PURGE(0x04),
-
-    /**
-     * Set
-     */
-    SET(0x05),
-
-    /**
-     * Get
-     */
-    GET(0x06);
-
-    /**
-     * Value
-     */
-    private final int value;
-
-    /**
-     * Constructor
+     * To bytes
      *
-     * @param value
+     * @return byte[]
      */
-    RequestType(int value) {
-        this.value = value;
-    }
+    public byte[] toBytes() {
+        byte[] keyBytes = key.getBytes(StandardCharsets.UTF_8);
 
-    /**
-     * Get value
-     *
-     * @return int
-     */
-    public int getValue() {
-        return value;
+        var buffer = ByteBuffer.allocate(
+                2 + keyBytes.length
+        );
+        buffer.order(ByteOrder.LITTLE_ENDIAN);
+
+        buffer.put((byte) RequestType.GET.getValue());
+        buffer.put((byte) keyBytes.length);
+        buffer.put(keyBytes);
+
+        return buffer.array();
     }
 }
