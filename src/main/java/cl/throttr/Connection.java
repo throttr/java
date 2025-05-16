@@ -163,7 +163,6 @@ public class Connection implements AutoCloseable {
      */
     private QueryResponse readQueryResponse(int head) throws IOException {
         if (head != 0x01) {
-            // clearResidualInput();
             return new QueryResponse(false, 0, TTLType.SECONDS, 0);
         }
 
@@ -247,21 +246,8 @@ public class Connection implements AutoCloseable {
      * @return StatusResponse
      * @throws IOException
      */
-    private StatusResponse readStatusResponse(int head) throws IOException {
+    private StatusResponse readStatusResponse(int head) {
         return new StatusResponse(head == 0x01);
-    }
-
-    /**
-     * Clear residual input
-     *
-     * @throws IOException
-     */
-    private void clearResidualInput() throws IOException {
-        while (in.available() > 0) {
-            byte[] residual = new byte[Math.min(in.available(), 64)];
-            int readBytes = in.read(residual);
-            if (readBytes <= 0) break;
-        }
     }
 
     /**
