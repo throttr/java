@@ -110,7 +110,6 @@ public class Connection implements AutoCloseable {
                     case 0x06 -> readGetResponse(head);
                     default -> readStatusResponse(head);
                 };
-
                 responses.add(response);
             }
 
@@ -164,7 +163,7 @@ public class Connection implements AutoCloseable {
      */
     private QueryResponse readQueryResponse(int head) throws IOException {
         if (head != 0x01) {
-            clearResidualInput();
+            // clearResidualInput();
             return new QueryResponse(false, 0, TTLType.SECONDS, 0);
         }
 
@@ -184,7 +183,6 @@ public class Connection implements AutoCloseable {
         full[0] = (byte) head;
         System.arraycopy(merged, 0, full, 1, expected);
 
-        clearResidualInput();
         return QueryResponse.fromBytes(full, size);
     }
 
@@ -197,7 +195,6 @@ public class Connection implements AutoCloseable {
      */
     private GetResponse readGetResponse(int head) throws IOException {
         if (head != 0x01) {
-            clearResidualInput();
             return new GetResponse(false, null, 0, null);
         }
 
@@ -240,7 +237,6 @@ public class Connection implements AutoCloseable {
         System.arraycopy(header, 0, full, 1, header.length);
         System.arraycopy(value, 0, full, 1 + header.length, value.length);
 
-        clearResidualInput();
         return GetResponse.fromBytes(full, size);
     }
 
@@ -252,7 +248,6 @@ public class Connection implements AutoCloseable {
      * @throws IOException
      */
     private StatusResponse readStatusResponse(int head) throws IOException {
-        clearResidualInput();
         return new StatusResponse(head == 0x01);
     }
 

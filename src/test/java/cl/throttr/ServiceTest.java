@@ -151,6 +151,29 @@ class ServiceTest {
         GetResponse getAfterPurge = (GetResponse) service.send(new GetRequest(key));
         assertFalse(getAfterPurge.success());
 
+
+        String key1 = UUID.randomUUID().toString();
+        String key2 = UUID.randomUUID().toString();
+
+        InsertRequest req1 = new InsertRequest(10, TTLType.SECONDS, 60, key1);
+        InsertRequest req2 = new InsertRequest(20, TTLType.SECONDS, 60, key2);
+
+        @SuppressWarnings("unchecked")
+        List<StatusResponse> insertResponses = (List<StatusResponse>) service.send(List.of(req1, req2));
+
+        assertEquals(2, insertResponses.size());
+        assertTrue(insertResponses.get(0).success());
+        assertTrue(insertResponses.get(1).success());
+
+        QueryRequest q1 = new QueryRequest(key1);
+        QueryRequest q2 = new QueryRequest(key2);
+
+        @SuppressWarnings("unchecked")
+        List<QueryResponse> queryResponses = (List<QueryResponse>) service.send(List.of(q1, q2));
+
+        assertEquals(2, queryResponses.size());
+        assertEquals(10, queryResponses.get(0).quota());
+        assertEquals(20, queryResponses.get(1).quota());
         service.close();
     }
 
@@ -161,7 +184,7 @@ class ServiceTest {
         if ("uint16".equals(size)) sized = ValueSize.UINT16;
         if ("uint32".equals(size)) sized = ValueSize.UINT32;
         if ("uint64".equals(size)) sized = ValueSize.UINT64;
-        
+
         Service service = new Service("127.0.0.1", 9000, sized, 1);
         service.connect();
 
