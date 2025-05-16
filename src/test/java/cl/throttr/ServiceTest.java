@@ -156,7 +156,12 @@ class ServiceTest {
 
     @Test
     void shouldSupportBatchInsertAndQuery() throws Exception {
-        ValueSize sized = ValueSize.UINT16;
+        ValueSize sized = ValueSize.UINT8;
+        String size = System.getenv().getOrDefault("THROTTR_SIZE", "uint16");
+        if ("uint16".equals(size)) sized = ValueSize.UINT16;
+        if ("uint32".equals(size)) sized = ValueSize.UINT32;
+        if ("uint64".equals(size)) sized = ValueSize.UINT64;
+        
         Service service = new Service("127.0.0.1", 9000, sized, 1);
         service.connect();
 
