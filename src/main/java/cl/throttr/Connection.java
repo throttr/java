@@ -23,11 +23,14 @@ import cl.throttr.responses.QueryResponse;
 import cl.throttr.responses.StatusResponse;
 import cl.throttr.utils.Binary;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Connection
@@ -79,6 +82,39 @@ public class Connection implements AutoCloseable {
     public Object send(Object request) throws IOException {
         if (socket.isClosed()) {
             throw new IOException("Socket is already closed");
+        }
+
+        if (request instanceof List<?> list) {
+            ByteArrayOutputStream totalBuffer = new ByteArrayOutputStream();
+            List<Integer> types = new ArrayList<>();
+
+            for (Object req : list) {
+                byte[] buffer = getRequestBuffer(req, size);
+                totalBuffer.write(buffer);
+                types.add(Byte.toUnsignedInt(buffer[0]));
+            }
+
+            byte[] finalBuffer = totalBuffer.toByteArray();
+            out.write(finalBuffer);
+            out.flush();
+
+            List<Object> responses = new ArrayList<>();
+            for (int type : types) {
+                int head = in.read();
+                if (head == -1) {
+                    throw new IOException("Connection closed while reading response.");
+                }
+
+                Object response = switch (type) {
+                    case 0x02 -> readQueryResponse(head);
+                    case 0x06 -> readGetResponse(head);
+                    default -> readStatusResponse(head);
+                };
+
+                responses.add(response);
+            }
+
+            return responses;
         }
 
         byte[] buffer = getRequestBuffer(request, size);

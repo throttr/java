@@ -23,6 +23,7 @@ import org.awaitility.Awaitility;
 import org.junit.jupiter.api.*;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -149,6 +150,39 @@ class ServiceTest {
         // GET again -> should fail
         GetResponse getAfterPurge = (GetResponse) service.send(new GetRequest(key));
         assertFalse(getAfterPurge.success());
+
+        service.close();
+    }
+
+    @Test
+    void shouldSupportBatchInsertAndQuery() throws Exception {
+        ValueSize sized = ValueSize.UINT16;
+        Service service = new Service("127.0.0.1", 9000, sized, 1);
+        service.connect();
+
+        String key1 = UUID.randomUUID().toString();
+        String key2 = UUID.randomUUID().toString();
+
+        // Armar batch de insert
+        InsertRequest req1 = new InsertRequest(10, TTLType.SECONDS, 60, key1);
+        InsertRequest req2 = new InsertRequest(20, TTLType.SECONDS, 60, key2);
+
+        @SuppressWarnings("unchecked")
+        List<StatusResponse> insertResponses = (List<StatusResponse>) service.send(List.of(req1, req2));
+
+        assertEquals(2, insertResponses.size());
+        assertTrue(insertResponses.get(0).success());
+        assertTrue(insertResponses.get(1).success());
+
+        QueryRequest q1 = new QueryRequest(key1);
+        QueryRequest q2 = new QueryRequest(key2);
+
+        @SuppressWarnings("unchecked")
+        List<QueryResponse> queryResponses = (List<QueryResponse>) service.send(List.of(q1, q2));
+
+        assertEquals(2, queryResponses.size());
+        assertEquals(10, queryResponses.get(0).quota());
+        assertEquals(20, queryResponses.get(1).quota());
 
         service.close();
     }
