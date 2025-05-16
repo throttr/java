@@ -23,11 +23,14 @@ import cl.throttr.responses.QueryResponse;
 import cl.throttr.responses.StatusResponse;
 import cl.throttr.utils.Binary;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Connection
@@ -81,6 +84,38 @@ public class Connection implements AutoCloseable {
             throw new IOException("Socket is already closed");
         }
 
+        if (request instanceof List<?> list) {
+            ByteArrayOutputStream totalBuffer = new ByteArrayOutputStream();
+            List<Integer> types = new ArrayList<>();
+
+            for (Object req : list) {
+                byte[] buffer = getRequestBuffer(req, size);
+                totalBuffer.write(buffer);
+                types.add(Byte.toUnsignedInt(buffer[0]));
+            }
+
+            byte[] finalBuffer = totalBuffer.toByteArray();
+            out.write(finalBuffer);
+            out.flush();
+
+            List<Object> responses = new ArrayList<>();
+            for (int type : types) {
+                int head = in.read();
+                if (head == -1) {
+                    throw new IOException("Connection closed while reading response.");
+                }
+
+                Object response = switch (type) {
+                    case 0x02 -> readQueryResponse(head);
+                    case 0x06 -> readGetResponse(head);
+                    default -> readStatusResponse(head);
+                };
+                responses.add(response);
+            }
+
+            return responses;
+        }
+
         byte[] buffer = getRequestBuffer(request, size);
 
         out.write(buffer);
@@ -128,7 +163,6 @@ public class Connection implements AutoCloseable {
      */
     private QueryResponse readQueryResponse(int head) throws IOException {
         if (head != 0x01) {
-            clearResidualInput();
             return new QueryResponse(false, 0, TTLType.SECONDS, 0);
         }
 
@@ -148,7 +182,6 @@ public class Connection implements AutoCloseable {
         full[0] = (byte) head;
         System.arraycopy(merged, 0, full, 1, expected);
 
-        clearResidualInput();
         return QueryResponse.fromBytes(full, size);
     }
 
@@ -161,7 +194,6 @@ public class Connection implements AutoCloseable {
      */
     private GetResponse readGetResponse(int head) throws IOException {
         if (head != 0x01) {
-            clearResidualInput();
             return new GetResponse(false, null, 0, null);
         }
 
@@ -204,7 +236,6 @@ public class Connection implements AutoCloseable {
         System.arraycopy(header, 0, full, 1, header.length);
         System.arraycopy(value, 0, full, 1 + header.length, value.length);
 
-        clearResidualInput();
         return GetResponse.fromBytes(full, size);
     }
 
@@ -215,22 +246,8 @@ public class Connection implements AutoCloseable {
      * @return StatusResponse
      * @throws IOException
      */
-    private StatusResponse readStatusResponse(int head) throws IOException {
-        clearResidualInput();
+    private StatusResponse readStatusResponse(int head) {
         return new StatusResponse(head == 0x01);
-    }
-
-    /**
-     * Clear residual input
-     *
-     * @throws IOException
-     */
-    private void clearResidualInput() throws IOException {
-        while (in.available() > 0) {
-            byte[] residual = new byte[Math.min(in.available(), 64)];
-            int readBytes = in.read(residual);
-            if (readBytes <= 0) break;
-        }
     }
 
     /**
