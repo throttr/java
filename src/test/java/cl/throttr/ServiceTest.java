@@ -215,6 +215,44 @@ class ServiceTest {
         service.close();
     }
 
+
+
+    @Test
+    void shouldSupportBatchSetAndGet() throws Exception {
+        ValueSize sized = ValueSize.UINT8;
+        String size = System.getenv().getOrDefault("THROTTR_SIZE", "uint16");
+        if ("uint16".equals(size)) sized = ValueSize.UINT16;
+        if ("uint32".equals(size)) sized = ValueSize.UINT32;
+        if ("uint64".equals(size)) sized = ValueSize.UINT64;
+
+        Service service = new Service("127.0.0.1", 9000, sized, 1);
+        service.connect();
+
+        String key1 = UUID.randomUUID().toString();
+        String key2 = UUID.randomUUID().toString();
+
+        SetRequest req1 = new SetRequest(TTLType.SECONDS, 10, key1, "EHLO");
+        SetRequest req2 = new SetRequest( TTLType.SECONDS, 20, key2, "LOEH");
+
+        @SuppressWarnings("unchecked")
+        List<StatusResponse> setResponses = (List<StatusResponse>) service.send(List.of(req1, req2));
+
+        assertEquals(2, setResponses.size());
+        assertTrue(setResponses.get(0).success());
+        assertTrue(setResponses.get(1).success());
+
+        GetRequest q1 = new GetRequest(key1);
+        GetRequest q2 = new GetRequest(key2);
+
+        @SuppressWarnings("unchecked")
+        List<GetResponse> queryResponses = (List<GetResponse>) service.send(List.of(q1, q2));
+
+        assertEquals(2, queryResponses.size());
+        assertEquals("EHLO", new String(queryResponses.get(0).value()));
+        assertEquals("LOEH", new String(queryResponses.get(1).value()));
+        service.close();
+    }
+
     @Test
     void shouldThrowIfMaxConnectionsIsZero() {
         IllegalArgumentException ex = assertThrows(
