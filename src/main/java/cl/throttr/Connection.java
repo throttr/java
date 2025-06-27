@@ -15,12 +15,11 @@
 
 package cl.throttr;
 
+import cl.throttr.enums.RequestType;
 import cl.throttr.enums.TTLType;
 import cl.throttr.enums.ValueSize;
 import cl.throttr.requests.*;
-import cl.throttr.responses.GetResponse;
-import cl.throttr.responses.QueryResponse;
-import cl.throttr.responses.StatusResponse;
+import cl.throttr.responses.*;
 import cl.throttr.utils.Binary;
 
 import java.io.ByteArrayOutputStream;
@@ -108,6 +107,10 @@ public class Connection implements AutoCloseable {
                 Object response = switch (type) {
                     case 0x02 -> readQueryResponse(head);
                     case 0x06 -> readGetResponse(head);
+                    case 0x07 -> readListResponse(head);
+                    case 0x08 -> readInfoResponse(head);
+                    case 0x09 -> readStatResponse(head);
+                    case 0x10 -> readStatsResponse(head);
                     default -> readStatusResponse(head);
                 };
                 responses.add(response);
@@ -131,8 +134,224 @@ public class Connection implements AutoCloseable {
         return switch (type) {
             case 0x02 -> readQueryResponse(head);
             case 0x06 -> readGetResponse(head);
+            case 0x07 -> readListResponse(head);
+            case 0x08 -> readInfoResponse(head);
+            case 0x09 -> readStatResponse(head);
+            case 0x10 -> readStatsResponse(head);
             default -> readStatusResponse(head);
         };
+    }
+
+    private ListResponse readListResponse(int head) throws IOException {
+        if (head != 0x01) {
+            return new ListResponse(false, new ArrayList<>());
+        }
+
+        List<ListItem> items = new ArrayList<>();
+
+        byte[] header = new byte[8];
+        int offset = 0;
+        while (offset < 8) {
+            int read = in.read(header, offset, 8 - offset);
+            if (read == -1) throw new IOException("Unexpected EOF while reading fragments count");
+            offset += read;
+        }
+
+        ByteBuffer hb = ByteBuffer.wrap(header).order(java.nio.ByteOrder.LITTLE_ENDIAN);
+        long fragments = hb.getLong();
+
+        for (long f = 0; f < fragments; f++) {
+            byte[] skip = new byte[8];
+            in.read(skip);
+
+            // Leer cantidad de claves
+            byte[] keysHeader = new byte[8];
+            in.read(keysHeader);
+            ByteBuffer khb = ByteBuffer.wrap(keysHeader).order(java.nio.ByteOrder.LITTLE_ENDIAN);
+            long keysInFragment = khb.getLong();
+
+            // Leer headers de claves
+            List<ListItem> scopedItems = new ArrayList<>();
+            List<Integer> keyLengths = new ArrayList<>();
+            int perKeyHeader = 3 + 8 + size.getValue(); // key_length, key_type, ttl_type, expires_at, bytes_used
+
+            byte[] keyHeaderBuffer = new byte[(int) keysInFragment * perKeyHeader];
+            offset = 0;
+            while (offset < keyHeaderBuffer.length) {
+                int read = in.read(keyHeaderBuffer, offset, keyHeaderBuffer.length - offset);
+                if (read == -1) throw new IOException("Unexpected EOF while reading key headers");
+                offset += read;
+            }
+
+            ByteBuffer kb = ByteBuffer.wrap(keyHeaderBuffer).order(java.nio.ByteOrder.LITTLE_ENDIAN);
+
+            for (int i = 0; i < keysInFragment; i++) {
+                int keyLength = Byte.toUnsignedInt(kb.get());
+                int keyType = Byte.toUnsignedInt(kb.get());
+                int ttlType = Byte.toUnsignedInt(kb.get());
+                long expiresAt = kb.getLong();
+                long bytesUsed = Binary.read(kb, size);
+
+                scopedItems.add(new ListItem(
+                        "", keyLength, keyType, ttlType, expiresAt, bytesUsed
+                ));
+                keyLengths.add(keyLength);
+            }
+
+            // Leer claves reales
+            for (int i = 0; i < scopedItems.size(); i++) {
+                int len = keyLengths.get(i);
+                byte[] key = new byte[len];
+                offset = 0;
+                while (offset < len) {
+                    int read = in.read(key, offset, len - offset);
+                    if (read == -1) throw new IOException("Unexpected EOF while reading key string");
+                    offset += read;
+                }
+                scopedItems.get(i).setKey(new String(key));
+            }
+
+            items.addAll(scopedItems);
+        }
+
+        return new ListResponse(true, items);
+    }
+
+    private StatsResponse readStatsResponse(int head) throws IOException {
+        if (head != 0x01) {
+            return new StatsResponse(false, new ArrayList<>());
+        }
+
+        List<StatsItem> items = new ArrayList<>();
+
+        // Leer fragment count
+        byte[] header = new byte[8];
+        int offset = 0;
+        while (offset < 8) {
+            int read = in.read(header, offset, 8 - offset);
+            if (read == -1) throw new IOException("Unexpected EOF while reading fragments count");
+            offset += read;
+        }
+
+        ByteBuffer hb = ByteBuffer.wrap(header).order(java.nio.ByteOrder.LITTLE_ENDIAN);
+        long fragments = hb.getLong();
+
+        for (long f = 0; f < fragments; f++) {
+            // Saltar timestamp
+            in.read(new byte[8]);
+
+            // Leer cantidad de claves
+            byte[] countBuf = new byte[8];
+            in.read(countBuf);
+            ByteBuffer cb = ByteBuffer.wrap(countBuf).order(java.nio.ByteOrder.LITTLE_ENDIAN);
+            long keysInFragment = cb.getLong();
+
+            List<StatsItem> scopedItems = new ArrayList<>();
+            List<Integer> keyLengths = new ArrayList<>();
+
+            int perKeyHeader = 33; // 1 + 4 * 8
+
+            byte[] keyHeaderBuffer = new byte[(int) keysInFragment * perKeyHeader];
+            offset = 0;
+            while (offset < keyHeaderBuffer.length) {
+                int read = in.read(keyHeaderBuffer, offset, keyHeaderBuffer.length - offset);
+                if (read == -1) throw new IOException("Unexpected EOF while reading stats headers");
+                offset += read;
+            }
+
+            ByteBuffer kb = ByteBuffer.wrap(keyHeaderBuffer).order(java.nio.ByteOrder.LITTLE_ENDIAN);
+
+            for (int i = 0; i < keysInFragment; i++) {
+                int keyLength = Byte.toUnsignedInt(kb.get());
+                long readsPerMin = kb.getLong();
+                long writesPerMin = kb.getLong();
+                long totalReads = kb.getLong();
+                long totalWrites = kb.getLong();
+
+                scopedItems.add(new StatsItem(
+                        "", keyLength, readsPerMin, writesPerMin, totalReads, totalWrites
+                ));
+                keyLengths.add(keyLength);
+            }
+
+            for (int i = 0; i < scopedItems.size(); i++) {
+                int len = keyLengths.get(i);
+                byte[] key = new byte[len];
+                offset = 0;
+                while (offset < len) {
+                    int read = in.read(key, offset, len - offset);
+                    if (read == -1) throw new IOException("Unexpected EOF while reading key string");
+                    offset += read;
+                }
+                scopedItems.get(i).setKey(new String(key));
+            }
+
+            items.addAll(scopedItems);
+        }
+
+        return new StatsResponse(true, items);
+    }
+
+    /**
+     * Read info response
+     *
+     * @param head byte del encabezado
+     * @return InfoResponse parseada desde el buffer
+     * @throws IOException si ocurre un error al leer desde el stream
+     */
+    private InfoResponse readInfoResponse(int head) throws IOException {
+        if (head != 0x01) {
+            throw new IOException("Invalid head for INFO response: " + head);
+        }
+
+        int expected = 432;
+        byte[] merged = new byte[expected];
+        int offset = 0;
+
+        while (offset < expected) {
+            int read = in.read(merged, offset, expected - offset);
+            if (read == -1) {
+                throw new IOException("Unexpected EOF while reading INFO response.");
+            }
+            offset += read;
+        }
+
+        byte[] full = new byte[1 + expected];
+        full[0] = (byte) head;
+        System.arraycopy(merged, 0, full, 1, expected);
+
+        return InfoResponse.fromBytes(full);
+    }
+
+    /**
+     * Read stat response
+     *
+     * @param head
+     * @return StatResponse
+     * @throws IOException
+     */
+    private StatResponse readStatResponse(int head) throws IOException {
+        if (head != 0x01) {
+            return new StatResponse(false, 0, 0, 0, 0);
+        }
+
+        int expected = 8 * 4; // 4 campos uint64
+        byte[] merged = new byte[expected];
+        int offset = 0;
+
+        while (offset < expected) {
+            int read = in.read(merged, offset, expected - offset);
+            if (read == -1) {
+                throw new IOException("Unexpected EOF while reading STAT response.");
+            }
+            offset += read;
+        }
+
+        byte[] full = new byte[1 + expected];
+        full[0] = (byte) head;
+        System.arraycopy(merged, 0, full, 1, expected);
+
+        return StatResponse.fromBytes(full);
     }
 
     /**
@@ -150,6 +369,10 @@ public class Connection implements AutoCloseable {
             case PurgeRequest purge -> purge.toBytes();
             case SetRequest set -> set.toBytes(size);
             case GetRequest get -> get.toBytes();
+            case ListRequest list -> list.toBytes();
+            case InfoRequest info -> info.toBytes();
+            case StatRequest stat -> stat.toBytes();
+            case StatsRequest stats -> stats.toBytes();
             case null, default -> throw new IllegalArgumentException("Unsupported request type");
         };
     }

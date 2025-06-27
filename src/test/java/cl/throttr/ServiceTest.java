@@ -215,7 +215,111 @@ class ServiceTest {
         service.close();
     }
 
+    @Test
+    void shouldSupportListAfterInsert() throws Exception {
+        ValueSize sized = ValueSize.UINT8;
+        String size = System.getenv().getOrDefault("THROTTR_SIZE", "uint16");
+        if ("uint16".equals(size)) sized = ValueSize.UINT16;
+        if ("uint32".equals(size)) sized = ValueSize.UINT32;
+        if ("uint64".equals(size)) sized = ValueSize.UINT64;
 
+        Service service = new Service("127.0.0.1", 9000, sized, 1);
+        service.connect();
+
+        String key = UUID.randomUUID().toString();
+
+        StatusResponse insert = (StatusResponse) service.send(new InsertRequest(99, TTLType.SECONDS, 60, key));
+        assertTrue(insert.success());
+
+        // LIST
+        ListResponse list = (ListResponse) service.send(new ListRequest());
+        assertTrue(list.isSuccess());
+        assertNotNull(list.getItems());
+        assertTrue(list.getItems().stream().anyMatch(item -> item.getKey().equals(key)));
+
+        service.close();
+    }
+
+    @Test
+    void shouldSupportStatsAfterSet() throws Exception {
+        ValueSize sized = ValueSize.UINT8;
+        String size = System.getenv().getOrDefault("THROTTR_SIZE", "uint16");
+        if ("uint16".equals(size)) sized = ValueSize.UINT16;
+        if ("uint32".equals(size)) sized = ValueSize.UINT32;
+        if ("uint64".equals(size)) sized = ValueSize.UINT64;
+
+        Service service = new Service("127.0.0.1", 9000, sized, 1);
+        service.connect();
+
+        String key = UUID.randomUUID().toString();
+        String value = "EHLO";
+
+        StatusResponse set = (StatusResponse) service.send(new SetRequest(TTLType.SECONDS, 30, key, value));
+        assertTrue(set.success());
+
+        Thread.sleep(100);
+
+        // STATS
+        StatsResponse stats = (StatsResponse) service.send(new StatsRequest());
+        assertTrue(stats.isSuccess());
+        assertNotNull(stats.getItems());
+        assertTrue(stats.getItems().stream().anyMatch(item -> item.getKey().equals(key)));
+
+        service.close();
+    }
+
+    @Test
+    void shouldSupportInfoAfterInsert() throws Exception {
+        ValueSize sized = ValueSize.UINT8;
+        String size = System.getenv().getOrDefault("THROTTR_SIZE", "uint16");
+        if ("uint16".equals(size)) sized = ValueSize.UINT16;
+        if ("uint32".equals(size)) sized = ValueSize.UINT32;
+        if ("uint64".equals(size)) sized = ValueSize.UINT64;
+        Service service = new Service("127.0.0.1", 9000, sized, 1);
+        service.connect();
+
+        String key = UUID.randomUUID().toString();
+        StatusResponse insert = (StatusResponse) service.send(new InsertRequest(99, TTLType.SECONDS, 60, key));
+        assertTrue(insert.success());
+
+        InfoResponse info = (InfoResponse) service.send(new InfoRequest());
+        assertTrue(info.success);
+
+        assertTrue(info.total_requests > 0);
+        assertTrue(info.total_insert_requests > 0);
+        assertTrue(info.total_requests_per_minute > 0);
+        assertTrue(info.total_read_bytes > 0);
+        assertTrue(info.total_write_bytes > 0);
+
+        service.close();
+    }
+
+    @Test
+    void shouldSupportStatAfterInsert() throws Exception {
+        ValueSize sized = ValueSize.UINT8;
+        String size = System.getenv().getOrDefault("THROTTR_SIZE", "uint16");
+        if ("uint16".equals(size)) sized = ValueSize.UINT16;
+        if ("uint32".equals(size)) sized = ValueSize.UINT32;
+        if ("uint64".equals(size)) sized = ValueSize.UINT64;
+
+        Service service = new Service("127.0.0.1", 9000, sized, 1);
+        service.connect();
+
+        String key = UUID.randomUUID().toString();
+        StatusResponse insert = (StatusResponse) service.send(new InsertRequest(42, TTLType.SECONDS, 30, key));
+        assertTrue(insert.success());
+
+        Thread.sleep(100); // asegurar algún registro
+
+        StatResponse stat = (StatResponse) service.send(new StatRequest(key));
+        assertTrue(stat.success());
+        assertTrue(stat.readsPerMinute() >= 0);
+        assertTrue(stat.writesPerMinute() >= 0);
+        assertTrue(stat.totalReads() >= 0);
+        assertTrue(stat.totalWrites() >= 0);
+
+        service.close();
+    }
 
     @Test
     void shouldSupportBatchSetAndGet() throws Exception {
