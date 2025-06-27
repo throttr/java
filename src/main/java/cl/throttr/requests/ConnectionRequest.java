@@ -19,20 +19,39 @@ import cl.throttr.enums.RequestType;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.charset.StandardCharsets;
 
 /**
- * List request
+ * Stat request
  */
-public record ListRequest() {
+public record ConnectionRequest(
+        String id
+) {
     /**
      * To bytes
      *
      * @return byte[]
      */
     public byte[] toBytes() {
-        var buffer = ByteBuffer.allocate(1);
+        byte[] idBytes = hexStringToByteArray(id);
+
+        var buffer = ByteBuffer.allocate(1 + 16);
         buffer.order(ByteOrder.LITTLE_ENDIAN);
-        buffer.put((byte) RequestType.LIST.getValue());
+
+        buffer.put((byte) RequestType.CONNECTION.getValue());
+        buffer.put(idBytes);
+
         return buffer.array();
+    }
+
+    private static byte[] hexStringToByteArray(String s) {
+        int len = s.length();
+        byte[] data = new byte[len / 2];
+        for (int i = 0; i < len; i += 2) {
+            int hi = Character.digit(s.charAt(i), 16);
+            int lo = Character.digit(s.charAt(i + 1), 16);
+            data[i / 2] = (byte) ((hi << 4) + lo);
+        }
+        return data;
     }
 }

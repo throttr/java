@@ -19,20 +19,31 @@ import cl.throttr.enums.RequestType;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.charset.StandardCharsets;
 
 /**
- * List request
+ * Unsubscribe request
  */
-public record ListRequest() {
+public record UnsubscribeRequest(
+        String channel
+) {
     /**
      * To bytes
      *
      * @return byte[]
      */
     public byte[] toBytes() {
-        var buffer = ByteBuffer.allocate(1);
+        byte[] channelBytes = channel.getBytes(StandardCharsets.UTF_8);
+
+        var buffer = ByteBuffer.allocate(
+                2 + channelBytes.length
+        );
         buffer.order(ByteOrder.LITTLE_ENDIAN);
-        buffer.put((byte) RequestType.LIST.getValue());
+
+        buffer.put((byte) RequestType.STAT.getValue());
+        buffer.put((byte) channelBytes.length);
+        buffer.put(channelBytes);
+
         return buffer.array();
     }
 }

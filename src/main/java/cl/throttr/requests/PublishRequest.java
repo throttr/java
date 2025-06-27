@@ -16,23 +16,41 @@
 package cl.throttr.requests;
 
 import cl.throttr.enums.RequestType;
+import cl.throttr.enums.ValueSize;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.charset.StandardCharsets;
+
+import static cl.throttr.utils.Binary.put;
 
 /**
- * List request
+ * Publish request
  */
-public record ListRequest() {
+public record PublishRequest(
+        String channel,
+        String payload
+) {
     /**
      * To bytes
      *
      * @return byte[]
      */
-    public byte[] toBytes() {
-        var buffer = ByteBuffer.allocate(1);
+    public byte[] toBytes(ValueSize size) {
+        byte[] channelBytes = channel.getBytes(StandardCharsets.UTF_8);
+        byte[] payloadBytes = payload.getBytes(StandardCharsets.UTF_8);
+
+        var buffer = ByteBuffer.allocate(
+                2 + channelBytes.length + size.getValue() + payloadBytes.length
+        );
         buffer.order(ByteOrder.LITTLE_ENDIAN);
-        buffer.put((byte) RequestType.LIST.getValue());
+
+        buffer.put((byte) RequestType.PUBLISH.getValue());
+        buffer.put((byte) channelBytes.length);
+        put(buffer, payloadBytes.length, size);
+        buffer.put(channelBytes);
+        buffer.put(payloadBytes);
+
         return buffer.array();
     }
 }

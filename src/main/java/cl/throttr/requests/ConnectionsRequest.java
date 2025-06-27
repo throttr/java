@@ -21,9 +21,9 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
 /**
- * List request
+ * Connections request
  */
-public record ListRequest() {
+public record ConnectionsRequest() {
     /**
      * To bytes
      *
@@ -32,7 +32,7 @@ public record ListRequest() {
     public byte[] toBytes() {
         var buffer = ByteBuffer.allocate(1);
         buffer.order(ByteOrder.LITTLE_ENDIAN);
-        buffer.put((byte) RequestType.LIST.getValue());
+        buffer.put((byte) RequestType.CONNECTIONS.getValue());
         return buffer.array();
     }
 }
