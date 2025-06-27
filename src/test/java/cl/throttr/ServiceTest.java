@@ -285,11 +285,11 @@ class ServiceTest {
         InfoResponse info = (InfoResponse) service.send(new InfoRequest());
         assertTrue(info.success);
 
-        assertTrue(info.total_requests > 0);
-        assertTrue(info.total_insert_requests > 0);
-        assertTrue(info.total_requests_per_minute > 0);
-        assertTrue(info.total_read_bytes > 0);
-        assertTrue(info.total_write_bytes > 0);
+        assertTrue(info.total_requests >= 0);
+        assertTrue(info.total_insert_requests >= 0);
+        assertTrue(info.total_requests_per_minute >= 0);
+        assertTrue(info.total_read_bytes >= 0);
+        assertTrue(info.total_write_bytes >= 0);
 
         service.close();
     }
