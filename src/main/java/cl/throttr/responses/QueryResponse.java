@@ -38,15 +38,14 @@ public record QueryResponse(
      * @return QueryResponse
      */
     public static QueryResponse fromBytes(byte[] data, ValueSize size) {
-        int expected = 1 + size.getValue() + 1 + size.getValue();
-        if (data.length != expected) {
-            throw new IllegalArgumentException("Invalid QueryResponse length: " + data.length);
-        }
-
         var buffer = ByteBuffer.wrap(data);
         buffer.order(ByteOrder.LITTLE_ENDIAN);
 
         boolean success = buffer.get() == 1;
+        if (!success) {
+            return new QueryResponse(false, 0, null, 0);
+        }
+
         long quota = Binary.read(buffer, size);
         TTLType ttlType = TTLType.fromByte(buffer.get());
         long ttl = Binary.read(buffer, size);

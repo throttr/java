@@ -30,15 +30,8 @@ public record StatResponse(
         long totalWrites
 ) {
     public static StatResponse fromBytes(byte[] data) {
-        if (data.length < 1) {
-            throw new IllegalArgumentException("Invalid StatResponse: empty response");
-        }
-
         ByteBuffer buffer = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN);
         boolean success = buffer.get() == 1;
-        if (!success) {
-            return new StatResponse(false, 0, 0, 0, 0);
-        }
 
         long rpm = Binary.read(buffer, ValueSize.UINT64);
         long wpm = Binary.read(buffer, ValueSize.UINT64);
