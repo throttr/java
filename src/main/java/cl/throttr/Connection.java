@@ -68,7 +68,7 @@ public class Connection implements AutoCloseable {
     public Object send(Object request) throws IOException {
         // Detect if connection is alive
         if (!channel.isActive()) {
-            throw new IOException("Channel is not active");
+            throw new IOException("Socket is already closed");
         }
 
         // If is a batch of <T>
