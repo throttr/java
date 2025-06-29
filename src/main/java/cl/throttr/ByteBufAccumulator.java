@@ -19,6 +19,7 @@ import cl.throttr.enums.ValueSize;
 import cl.throttr.parsers.*;
 import cl.throttr.requests.PendingRequest;
 import cl.throttr.responses.*;
+import cl.throttr.utils.Binary;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
@@ -26,15 +27,20 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 
 public class ByteBufAccumulator extends SimpleChannelInboundHandler<ByteBuf> {
     private final Queue<PendingRequest> pending;
+    private final Map<String, Consumer<String>> subscriptions;
+    private final ValueSize size;
     private ByteBuf buffer;
 
     private final Map<Integer, ResponseParser> parsers;
 
-    public ByteBufAccumulator(Queue<PendingRequest> pending, ValueSize size) {
+    public ByteBufAccumulator(Queue<PendingRequest> pending, Map<String, Consumer<String>> subscriptions, ValueSize size) {
         this.pending = pending;
+        this.subscriptions = subscriptions;
+        this.size = size;
         this.parsers = Map.ofEntries(
                 Map.entry(0x01, new StatusParser()),
                 Map.entry(0x02, new QueryParser(size)),
@@ -46,9 +52,9 @@ public class ByteBufAccumulator extends SimpleChannelInboundHandler<ByteBuf> {
                 Map.entry(0x08, new InfoParser()),
                 Map.entry(0x09, new StatParser()),
                 Map.entry(0x10, new StatsParser()),
-                Map.entry(0x11, new StatusParser()),
-                Map.entry(0x12, new StatusParser()),
-                Map.entry(0x13, new StatusParser()),
+                Map.entry(0x11, new StatusParser()), // SUBSCRIBE
+                Map.entry(0x12, new StatusParser()), // UNSUBSCRIBE
+                Map.entry(0x13, new StatusParser()), // PUBLISH
                 Map.entry(0x14, new ConnectionsParser()),
                 Map.entry(0x15, new ConnectionParser()),
                 Map.entry(0x16, new ChannelsParser()),
@@ -68,6 +74,43 @@ public class ByteBufAccumulator extends SimpleChannelInboundHandler<ByteBuf> {
             if (buffer.readableBytes() < 1) return;
 
             buffer.markReaderIndex();
+
+            int type = buffer.getUnsignedByte(buffer.readerIndex());
+
+            if (type == 0x19) {
+                int readerIndex = buffer.readerIndex();
+                if (buffer.readableBytes() < 1 + size.getValue()) {
+                    return;
+                }
+
+                int channelSize = Byte.toUnsignedInt(buffer.getByte(readerIndex + 1));
+                int headerSize = 1 + 1 + size.getValue() + channelSize;
+
+                if (buffer.readableBytes() < headerSize) {
+                    return;
+                }
+
+                long payloadLength = Binary.read(buffer, readerIndex + 2, size);
+                if (buffer.readableBytes() < headerSize + payloadLength) {
+                    return;
+                }
+
+                byte[] channelBytes = new byte[channelSize];
+                buffer.getBytes(readerIndex + 2 + size.getValue(), channelBytes);
+                String channel = new String(channelBytes);
+
+                byte[] payloadBytes = new byte[(int) payloadLength];
+                buffer.getBytes(readerIndex + headerSize, payloadBytes);
+                String payload = new String(payloadBytes);
+
+                buffer.readerIndex(readerIndex + headerSize + (int) payloadLength);
+
+                Consumer<String> callback = subscriptions.get(channel);
+                if (callback != null) {
+                    callback.accept(payload);
+                }
+                continue;
+            }
 
             PendingRequest pendingRequest = pending.peek();
             if (pendingRequest == null) {

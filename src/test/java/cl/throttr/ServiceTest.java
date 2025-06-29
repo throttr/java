@@ -25,6 +25,8 @@ import org.junit.jupiter.api.*;
 import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -490,6 +492,41 @@ class ServiceTest {
 
         service.close();
     }
+
+    @Test
+    void shouldReceivePublishedMessageAfterSubscribe() throws Exception {
+        ValueSize sized = ValueSize.UINT8;
+        String size = System.getenv().getOrDefault("THROTTR_SIZE", "uint16");
+        if ("uint16".equals(size)) sized = ValueSize.UINT16;
+        if ("uint32".equals(size)) sized = ValueSize.UINT32;
+        if ("uint64".equals(size)) sized = ValueSize.UINT64;
+
+        Service service = new Service("127.0.0.1", 9000, sized, 1);
+        service.connect();
+
+        String channel = "test-channel-" + UUID.randomUUID();
+        String payload = "hola mundo";
+
+        CountDownLatch latch = new CountDownLatch(1);
+        StringBuilder received = new StringBuilder();
+
+        service.getConnection().subscribe(channel, msg -> {
+            received.append(msg);
+            latch.countDown();
+        });
+
+        Thread.sleep(100); // que le de tiempo a registrarse
+
+        StatusResponse pub = (StatusResponse) service.send(new PublishRequest(channel, payload));
+        assertTrue(pub.success());
+
+        boolean success = latch.await(2, TimeUnit.SECONDS);
+        assertTrue(success, "No se recibió el mensaje a tiempo");
+        assertEquals(payload, received.toString());
+
+        service.close();
+    }
+
 
     @Test
     void shouldThrowIfMaxConnectionsIsZero() {

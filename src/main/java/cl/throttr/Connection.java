@@ -30,17 +30,19 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.function.Consumer;
 
 public class Connection implements AutoCloseable {
     private final ValueSize size;
     private final Channel channel;
     private final EventLoopGroup group;
     private final Queue<PendingRequest> pending = new ConcurrentLinkedQueue<>();
+    private final Map<String, Consumer<String>> subscriptions = new ConcurrentHashMap<>();
     private final ByteBufAccumulator accumulator;
 
     public Connection(String host, int port, ValueSize size) throws IOException {
         this.size = size;
-        this.accumulator = new ByteBufAccumulator(this.pending, size);
+        this.accumulator = new ByteBufAccumulator(this.pending, this.subscriptions, size);
         this.group = new NioEventLoopGroup();
 
         try {
@@ -158,6 +160,9 @@ public class Connection implements AutoCloseable {
             case InfoRequest info -> info.toBytes();
             case StatRequest stat -> stat.toBytes();
             case StatsRequest stats -> stats.toBytes();
+            case SubscribeRequest subscribe -> subscribe.toBytes();
+            case UnsubscribeRequest unsubscribe -> unsubscribe.toBytes();
+            case PublishRequest publish -> publish.toBytes(size);
             case ConnectionsRequest connections -> connections.toBytes();
             case ConnectionRequest connection -> connection.toBytes();
             case ChannelsRequest channels -> channels.toBytes();
@@ -165,6 +170,22 @@ public class Connection implements AutoCloseable {
             case WhoAmiRequest whoami -> whoami.toBytes();
             case null, default -> throw new IllegalArgumentException("Unsupported request type");
         };
+    }
+
+    public void subscribe(String name, Consumer<String> callback) throws IOException {
+        subscriptions.put(name, callback);
+
+        SubscribeRequest request = new SubscribeRequest(name);
+        byte[] buffer = request.toBytes();
+
+        channel.writeAndFlush(Unpooled.wrappedBuffer(buffer)).syncUninterruptibly();
+    }
+
+    public void triggerEvent(String channel, String data) {
+        Consumer<String> callback = subscriptions.get(channel);
+        if (callback != null) {
+            callback.accept(data);
+        }
     }
 
     @Override
