@@ -158,6 +158,11 @@ public class Connection implements AutoCloseable {
             case InfoRequest info -> info.toBytes();
             case StatRequest stat -> stat.toBytes();
             case StatsRequest stats -> stats.toBytes();
+            case ConnectionsRequest connections -> connections.toBytes();
+            case ConnectionRequest connection -> connection.toBytes();
+            case ChannelsRequest channels -> channels.toBytes();
+            case ChannelRequest channel -> channel.toBytes();
+            case WhoAmiRequest whoami -> whoami.toBytes();
             case null, default -> throw new IllegalArgumentException("Unsupported request type");
         };
     }

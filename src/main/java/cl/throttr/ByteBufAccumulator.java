@@ -35,17 +35,25 @@ public class ByteBufAccumulator extends SimpleChannelInboundHandler<ByteBuf> {
 
     public ByteBufAccumulator(Queue<PendingRequest> pending, ValueSize size) {
         this.pending = pending;
-        this.parsers = Map.of(
-                0x01, new StatusParser(), // INSERT
-                0x02, new QueryParser(size), // QUERY
-                0x03, new StatusParser(), // UPDATE
-                0x04, new StatusParser(), // PURGE
-                0x05, new StatusParser(), // SET
-                0x06, new GetParser(size), // GET
-                0x07, new ListParser(size), // LIST
-                0x08, new InfoParser(), // INFO
-                0x09, new StatParser(), // STAT
-                0x10, new StatsParser() // STATS
+        this.parsers = Map.ofEntries(
+                Map.entry(0x01, new StatusParser()),
+                Map.entry(0x02, new QueryParser(size)),
+                Map.entry(0x03, new StatusParser()),
+                Map.entry(0x04, new StatusParser()),
+                Map.entry(0x05, new StatusParser()),
+                Map.entry(0x06, new GetParser(size)),
+                Map.entry(0x07, new ListParser(size)),
+                Map.entry(0x08, new InfoParser()),
+                Map.entry(0x09, new StatParser()),
+                Map.entry(0x10, new StatsParser()),
+                Map.entry(0x11, new StatusParser()),
+                Map.entry(0x12, new StatusParser()),
+                Map.entry(0x13, new StatusParser()),
+                Map.entry(0x14, new ConnectionsParser()),
+                Map.entry(0x15, new ConnectionParser()),
+                Map.entry(0x16, new ChannelsParser()),
+                Map.entry(0x17, new ChannelParser()),
+                Map.entry(0x18, new WhoamiParser())
         );
     }
 

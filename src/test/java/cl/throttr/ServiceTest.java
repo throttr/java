@@ -358,6 +358,140 @@ class ServiceTest {
     }
 
     @Test
+    void shouldSupportConnectionsRequest() throws Exception {
+        ValueSize sized = ValueSize.UINT8;
+        String size = System.getenv().getOrDefault("THROTTR_SIZE", "uint16");
+        if ("uint16".equals(size)) sized = ValueSize.UINT16;
+        if ("uint32".equals(size)) sized = ValueSize.UINT32;
+        if ("uint64".equals(size)) sized = ValueSize.UINT64;
+
+        Service service = new Service("127.0.0.1", 9000, sized, 1);
+        service.connect();
+
+        ConnectionsResponse res = (ConnectionsResponse) service.send(new ConnectionsRequest());
+        assertTrue(res.isSuccess());
+        assertNotNull(res.getItems());
+
+        for (ConnectionsItem item : res.getItems()) {
+            assertNotNull(item);
+            assertNotNull(item.id);
+            assertEquals(32, item.id.length());
+            assertTrue(item.type == 0x00 || item.type == 0x01);
+            assertTrue(item.kind == 0x00 || item.kind == 0x01);
+            assertTrue(item.ipVersion == 0x04 || item.ipVersion == 0x06);
+            assertTrue(item.port > 0);
+            assertTrue(item.connectedAt > 0);
+        }
+
+        service.close();
+    }
+
+    @Test
+    void shouldSupportWhoamiRequest() throws Exception {
+        ValueSize sized = ValueSize.UINT8;
+        String size = System.getenv().getOrDefault("THROTTR_SIZE", "uint16");
+        if ("uint16".equals(size)) sized = ValueSize.UINT16;
+        if ("uint32".equals(size)) sized = ValueSize.UINT32;
+        if ("uint64".equals(size)) sized = ValueSize.UINT64;
+
+        Service service = new Service("127.0.0.1", 9000, sized, 1);
+        service.connect();
+
+        WhoamiResponse res = (WhoamiResponse) service.send(new WhoAmiRequest());
+        assertTrue(res.success);
+        assertNotNull(res.uuid);
+        assertEquals(32, res.uuid.length());
+
+        service.close();
+    }
+
+    @Test
+    void shouldSupportConnectionRequest() throws Exception {
+        ValueSize sized = ValueSize.UINT8;
+        String size = System.getenv().getOrDefault("THROTTR_SIZE", "uint16");
+        if ("uint16".equals(size)) sized = ValueSize.UINT16;
+        if ("uint32".equals(size)) sized = ValueSize.UINT32;
+        if ("uint64".equals(size)) sized = ValueSize.UINT64;
+
+        Service service = new Service("127.0.0.1", 9000, sized, 1);
+        service.connect();
+
+        // Primero hacemos WHOAMI para obtener nuestro propio ID de conexión
+        WhoamiResponse whoami = (WhoamiResponse) service.send(new WhoAmiRequest());
+        assertTrue(whoami.success);
+        assertNotNull(whoami.uuid);
+        assertEquals(32, whoami.uuid.length());
+
+        // Enviamos la solicitud CONNECTION con el mismo índice de conexión
+        ConnectionResponse response = (ConnectionResponse) service.send(new ConnectionRequest(whoami.uuid));
+        assertTrue(response.found);
+        assertNotNull(response.item);
+
+        ConnectionsItem item = response.item;
+        assertEquals(32, item.id.length());
+        assertTrue(item.type == 0x00 || item.type == 0x01);
+        assertTrue(item.kind == 0x00 || item.kind == 0x01);
+        assertTrue(item.ipVersion == 0x04 || item.ipVersion == 0x06);
+        assertTrue(item.port > 0);
+        assertTrue(item.connectedAt > 0);
+
+        service.close();
+    }
+
+    @Test
+    void shouldSupportChannelsRequest() throws Exception {
+        ValueSize sized = ValueSize.UINT8;
+        String size = System.getenv().getOrDefault("THROTTR_SIZE", "uint16");
+        if ("uint16".equals(size)) sized = ValueSize.UINT16;
+        if ("uint32".equals(size)) sized = ValueSize.UINT32;
+        if ("uint64".equals(size)) sized = ValueSize.UINT64;
+
+        Service service = new Service("127.0.0.1", 9000, sized, 1);
+        service.connect();
+
+        ChannelsResponse response = (ChannelsResponse) service.send(new ChannelsRequest());
+        assertTrue(response.success);
+        assertNotNull(response.items);
+        assertTrue(response.items.size() >= 2);
+
+        service.close();
+    }
+
+    @Test
+    void shouldSupportChannelRequest() throws Exception {
+        ValueSize sized = ValueSize.UINT8;
+        String size = System.getenv().getOrDefault("THROTTR_SIZE", "uint16");
+        if ("uint16".equals(size)) sized = ValueSize.UINT16;
+        if ("uint32".equals(size)) sized = ValueSize.UINT32;
+        if ("uint64".equals(size)) sized = ValueSize.UINT64;
+
+        Service service = new Service("127.0.0.1", 9000, sized, 1);
+        service.connect();
+
+        // Primero obtenemos nuestro UUID con WHOAMI
+        WhoamiResponse whoami = (WhoamiResponse) service.send(new WhoAmiRequest());
+        assertTrue(whoami.success);
+        assertNotNull(whoami.uuid);
+        assertEquals(32, whoami.uuid.length());
+
+        // Ahora pedimos el CHANNEL de nuestro propio UUID
+        ChannelResponse response = (ChannelResponse) service.send(new ChannelRequest(whoami.uuid));
+        assertTrue(response.success);
+        assertNotNull(response.connections);
+        assertTrue(response.connections.size() >= 1);
+
+        for (ChannelConnectionItem item : response.connections) {
+            assertNotNull(item.id);
+            assertEquals(32, item.id.length());
+            assertTrue(item.subscribedAt >= 0);
+            assertTrue(item.readBytes >= 0);
+            assertTrue(item.writeBytes >= 0);
+        }
+
+        service.close();
+    }
+
+    @Test
     void shouldThrowIfMaxConnectionsIsZero() {
         IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
