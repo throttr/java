@@ -527,6 +527,44 @@ class ServiceTest {
         service.close();
     }
 
+    @Test
+    void shouldUnsubscribeAndNotReceiveMessages() throws Exception {
+        ValueSize sized = ValueSize.UINT8;
+        String size = System.getenv().getOrDefault("THROTTR_SIZE", "uint16");
+        if ("uint16".equals(size)) sized = ValueSize.UINT16;
+        if ("uint32".equals(size)) sized = ValueSize.UINT32;
+        if ("uint64".equals(size)) sized = ValueSize.UINT64;
+
+        Service service = new Service("127.0.0.1", 9000, sized, 1);
+        service.connect();
+
+        String channel = "test-channel-" + UUID.randomUUID();
+        String payload = "hola mundo";
+
+        CountDownLatch latch = new CountDownLatch(1);
+        StringBuilder received = new StringBuilder();
+
+        var conn = service.getConnection();
+
+        conn.subscribe(channel, msg -> {
+            received.append(msg);
+            latch.countDown();
+        });
+
+        Thread.sleep(100); // tiempo para que se registre la suscripción
+
+        conn.unsubscribe(channel);
+
+        StatusResponse pub = (StatusResponse) service.send(new PublishRequest(channel, payload));
+        assertTrue(pub.success());
+
+        boolean success = latch.await(2, TimeUnit.SECONDS);
+        assertFalse(success, "Se recibió mensaje después de desuscribirse");
+
+        service.close();
+    }
+
+
 
     @Test
     void shouldThrowIfMaxConnectionsIsZero() {

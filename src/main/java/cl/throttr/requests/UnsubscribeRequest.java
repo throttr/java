@@ -40,7 +40,7 @@ public record UnsubscribeRequest(
         );
         buffer.order(ByteOrder.LITTLE_ENDIAN);
 
-        buffer.put((byte) RequestType.STAT.getValue());
+        buffer.put((byte) RequestType.UNSUBSCRIBE.getValue());
         buffer.put((byte) channelBytes.length);
         buffer.put(channelBytes);
 

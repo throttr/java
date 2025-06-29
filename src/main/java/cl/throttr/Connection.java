@@ -181,11 +181,13 @@ public class Connection implements AutoCloseable {
         channel.writeAndFlush(Unpooled.wrappedBuffer(buffer)).syncUninterruptibly();
     }
 
-    public void triggerEvent(String channel, String data) {
-        Consumer<String> callback = subscriptions.get(channel);
-        if (callback != null) {
-            callback.accept(data);
-        }
+    public void unsubscribe(String name) throws IOException {
+        subscriptions.remove(name);
+
+        UnsubscribeRequest request = new UnsubscribeRequest(name);
+        byte[] buffer = request.toBytes();
+
+        channel.writeAndFlush(Unpooled.wrappedBuffer(buffer)).syncUninterruptibly();
     }
 
     @Override
