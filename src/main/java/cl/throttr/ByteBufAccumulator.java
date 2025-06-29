@@ -18,7 +18,6 @@ package cl.throttr;
 import cl.throttr.enums.ValueSize;
 import cl.throttr.parsers.*;
 import cl.throttr.requests.PendingRequest;
-import cl.throttr.responses.*;
 import cl.throttr.utils.Binary;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
@@ -26,7 +25,6 @@ import io.netty.channel.SimpleChannelInboundHandler;
 
 import java.util.Map;
 import java.util.Queue;
-import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 public class ByteBufAccumulator extends SimpleChannelInboundHandler<ByteBuf> {
