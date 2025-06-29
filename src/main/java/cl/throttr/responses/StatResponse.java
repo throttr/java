@@ -17,6 +17,7 @@ package cl.throttr.responses;
 
 import cl.throttr.enums.ValueSize;
 import cl.throttr.utils.Binary;
+import com.sun.jdi.Value;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -31,8 +32,7 @@ public record StatResponse(
 ) {
     public static StatResponse fromBytes(byte[] data) {
         ByteBuffer buffer = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN);
-        boolean success = buffer.get() == 1;
-
+        boolean success = Binary.read(buffer, ValueSize.UINT8) == 0x01;
         long rpm = Binary.read(buffer, ValueSize.UINT64);
         long wpm = Binary.read(buffer, ValueSize.UINT64);
         long tr = Binary.read(buffer, ValueSize.UINT64);

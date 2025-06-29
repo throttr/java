@@ -33,6 +33,7 @@ public class StatParser implements ResponseParser {
         }
 
         byte[] data = new byte[expected];
+        buf.getBytes(index, data);
         return new ReadResult(StatResponse.fromBytes(data), expected);
     }
 }
