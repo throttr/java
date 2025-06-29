@@ -38,7 +38,7 @@ public record StatResponse(
         long tr = Binary.read(buffer, ValueSize.UINT64);
         long tw = Binary.read(buffer, ValueSize.UINT64);
 
-        return new StatResponse(true, rpm, wpm, tr, tw);
+        return new StatResponse(success, rpm, wpm, tr, tw);
     }
 
     @Override
@@ -55,12 +55,12 @@ public record StatResponse(
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof StatResponse that)) return false;
-        return success == that.success &&
-                readsPerMinute == that.readsPerMinute &&
-                writesPerMinute == that.writesPerMinute &&
-                totalReads == that.totalReads &&
-                totalWrites == that.totalWrites;
+        if (!(o instanceof StatResponse(boolean success1, long readsPerMinuteParam, long writesPerMinuteParam, long reads, long writes))) return false;
+        return success == success1 &&
+                readsPerMinute == readsPerMinuteParam &&
+                writesPerMinute == writesPerMinuteParam &&
+                totalReads == reads &&
+                totalWrites == writes;
     }
 
     @Override

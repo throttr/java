@@ -19,7 +19,6 @@ import cl.throttr.enums.RequestType;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.nio.charset.StandardCharsets;
 
 /**
  * Stat request

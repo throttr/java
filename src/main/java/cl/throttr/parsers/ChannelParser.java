@@ -22,7 +22,6 @@ import cl.throttr.responses.ChannelResponse;
 import cl.throttr.utils.Binary;
 import io.netty.buffer.ByteBuf;
 
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
