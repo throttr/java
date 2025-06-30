@@ -63,7 +63,7 @@ public class Connection implements AutoCloseable {
         }
     }
 
-    public Object send(Object request) throws IOException {
+    public Object send(Object request) throws IOException, InterruptedException, ExecutionException {
         return Dispatcher.dispatch(channel, pending, request, size);
     }
 

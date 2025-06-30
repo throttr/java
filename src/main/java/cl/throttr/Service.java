@@ -20,6 +20,7 @@ import cl.throttr.enums.ValueSize;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -91,7 +92,7 @@ public class Service implements AutoCloseable {
      * @param request Requests
      * @return Object
      */
-    public Object send(Object request) throws IOException {
+    public Object send(Object request) throws IOException, InterruptedException, ExecutionException {
         if (connections.isEmpty()) {
             throw new IllegalStateException("There are no available connections.");
         }

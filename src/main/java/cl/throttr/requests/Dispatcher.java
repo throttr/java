@@ -29,7 +29,7 @@ public final class Dispatcher {
 
     private Dispatcher() {}
 
-    public static Object dispatch(Channel channel, Queue<PendingRequest> pending, Object request, ValueSize size) throws IOException {
+    public static Object dispatch(Channel channel, Queue<PendingRequest> pending, Object request, ValueSize size) throws IOException, InterruptedException, ExecutionException {
         if (!channel.isActive()) {
             throw new IOException("Socket is already closed");
         }
@@ -41,7 +41,7 @@ public final class Dispatcher {
         return dispatchSingle(channel, pending, request, size);
     }
 
-    private static Object dispatchBatch(Channel channel, Queue<PendingRequest> pending, List<?> list, ValueSize size) throws IOException {
+    private static Object dispatchBatch(Channel channel, Queue<PendingRequest> pending, List<?> list, ValueSize size) throws InterruptedException, ExecutionException {
         ByteArrayOutputStream totalBuffer = new ByteArrayOutputStream();
         List<Integer> types = new ArrayList<>();
 
@@ -64,20 +64,13 @@ public final class Dispatcher {
 
         List<Object> responses = new ArrayList<>();
         for (CompletableFuture<Object> f : futures) {
-            try {
-                responses.add(f.get());
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new IOException("Thread was interrupted while awaiting batch response", e);
-            } catch (ExecutionException e) {
-                throw new IOException("Failed while awaiting batch response", e.getCause());
-            }
+            responses.add(f.get());
         }
 
         return responses;
     }
 
-    private static Object dispatchSingle(Channel channel, Queue<PendingRequest> pending, Object request, ValueSize size) throws IOException {
+    private static Object dispatchSingle(Channel channel, Queue<PendingRequest> pending, Object request, ValueSize size) throws InterruptedException, ExecutionException {
         byte[] buffer = Serializer.invoke(request, size);
         CompletableFuture<Object> future = new CompletableFuture<>();
         int type = Byte.toUnsignedInt(buffer[0]);
@@ -85,13 +78,6 @@ public final class Dispatcher {
 
         channel.writeAndFlush(Unpooled.wrappedBuffer(buffer)).syncUninterruptibly();
 
-        try {
-            return future.get();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new IOException("Thread was interrupted while awaiting response", e);
-        } catch (ExecutionException e) {
-            throw new IOException("Failed while awaiting response", e.getCause());
-        }
+        return future.get();
     }
 }
