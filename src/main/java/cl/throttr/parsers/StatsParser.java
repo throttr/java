@@ -32,11 +32,6 @@ public class StatsParser implements ResponseParser {
         int index = buf.readerIndex();
         if (buf.readableBytes() < 1 + 8) return null;
 
-        byte status = buf.getByte(index);
-        if (status == 0x00) {
-            return new ReadResult(new StatsResponse(false, new ArrayList<>()), 1);
-        }
-
         int i = index + 1;
         long fragments = Binary.read(buf, i, ValueSize.UINT64);
         i += 8;
