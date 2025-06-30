@@ -27,17 +27,14 @@ public class ConnectionParser implements ResponseParser {
     public ReadResult tryParse(ByteBuf buf) {
         int index = buf.readerIndex();
 
-        // Se necesita al menos 1 byte de status
         if (buf.readableBytes() < 1) return null;
 
         byte status = buf.getByte(index);
 
         if (status == 0x00) {
-            buf.readerIndex(index + 1);
             return new ReadResult(new ConnectionResponse(false, null), 1);
         }
 
-        // Si status es 0x01, requiere 1 + 237 bytes
         if (buf.readableBytes() < 1 + ENTRY_SIZE) return null;
 
         byte[] data = new byte[ENTRY_SIZE];

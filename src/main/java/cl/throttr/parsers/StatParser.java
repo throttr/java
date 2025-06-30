@@ -23,14 +23,13 @@ public class StatParser implements ResponseParser {
     @Override
     public ReadResult tryParse(ByteBuf buf) {
         int index = buf.readerIndex();
-        int expected = 1 + 8 * 4; // status + 4 campos uint64
-
-        if (buf.readableBytes() < expected) return null;
-
         byte status = buf.getByte(index);
         if (status == 0x00) {
             return new ReadResult(new StatResponse(false, 0, 0, 0, 0), 1);
         }
+
+        int expected = 1 + 8 * 4; // status + 4 campos uint64
+        if (buf.readableBytes() < expected) return null;
 
         byte[] data = new byte[expected];
         buf.getBytes(index, data);

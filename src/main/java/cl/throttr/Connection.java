@@ -53,7 +53,6 @@ public class Connection implements AutoCloseable {
                         @Override
                         protected void initChannel(SocketChannel ch) {
                             ch.pipeline()
-                                    .addLast(new LoggingHandler(LogLevel.ERROR))
                                     .addLast(accumulator);
                         }
                     });

@@ -313,6 +313,9 @@ class ServiceTest {
         StatusResponse insert = (StatusResponse) service.send(new InsertRequest(42, TTLType.SECONDS, 30, key));
         assertTrue(insert.success());
 
+        StatResponse error_stat = (StatResponse) service.send(new StatRequest("MISSING_KEY"));
+        assertFalse(error_stat.success());
+
         Awaitility.await().atMost(Duration.ofMillis(200)).untilAsserted(() -> {
             StatResponse stat = (StatResponse) service.send(new StatRequest(key));
             assertTrue(stat.success());
@@ -430,6 +433,10 @@ class ServiceTest {
         ConnectionResponse response = (ConnectionResponse) service.send(new ConnectionRequest(whoami.uuid));
         assertTrue(response.found);
         assertNotNull(response.item);
+
+        ConnectionResponse error_response = (ConnectionResponse) service.send(new ConnectionRequest("b7e0f7c8b6a04c678727303c3a90b341"));
+        assertFalse(error_response.found);
+        assertNull(error_response.item);
 
         ConnectionsItem item = response.item;
         assertEquals(32, item.id.length());

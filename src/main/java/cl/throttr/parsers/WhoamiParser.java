@@ -27,11 +27,6 @@ public class WhoamiParser implements ResponseParser {
         int index = buf.readerIndex();
         if (buf.readableBytes() < TOTAL_SIZE) return null;
 
-        byte status = buf.getByte(index);
-        if (status != 0x01) {
-            return new ReadResult(new WhoamiResponse(false, null), 1);
-        }
-
         byte[] uuid = new byte[16];
         buf.getBytes(index + 1, uuid);
         return new ReadResult(new WhoamiResponse(true, uuid), TOTAL_SIZE);

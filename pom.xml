@@ -5,7 +5,7 @@
 
     <groupId>cl.throttr</groupId>
     <artifactId>sdk</artifactId>
-    <version>4.1.1</version>
+    <version>5.0.0</version>
     <packaging>jar</packaging>
 
     <name>Throttr SDK for Java</name>
@@ -71,7 +71,7 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-all</artifactId>
-            <version>4.1.107.Final</version>
+            <version>4.1.122.Final</version>
         </dependency>
     </dependencies>
 
