@@ -35,11 +35,6 @@ public class ConnectionsParser implements ResponseParser {
 
         if (buf.readableBytes() < HEADER_SIZE) return null;
 
-        byte status = buf.getByte(index);
-        if (status != 0x01) {
-            return new ReadResult(new ConnectionsResponse(false, new ArrayList<>()), 1);
-        }
-
         int i = index + 1;
         long fragments = Binary.read(buf, i, ValueSize.UINT64);
         i += 8;
