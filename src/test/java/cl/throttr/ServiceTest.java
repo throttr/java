@@ -259,15 +259,17 @@ class ServiceTest {
         StatusResponse set = (StatusResponse) service.send(new SetRequest(TTLType.SECONDS, 30, key, value));
         assertTrue(set.success());
 
-        Thread.sleep(100);
+        Awaitility.await().atMost(Duration.ofMillis(200)).untilAsserted(() -> {
 
-        // STATS
-        StatsResponse stats = (StatsResponse) service.send(new StatsRequest());
-        assertTrue(stats.isSuccess());
-        assertNotNull(stats.getItems());
-        assertTrue(stats.getItems().stream().anyMatch(item -> item.getKey().equals(key)));
+            // STATS
+            StatsResponse stats = (StatsResponse) service.send(new StatsRequest());
+            assertTrue(stats.isSuccess());
+            assertNotNull(stats.getItems());
+            assertTrue(stats.getItems().stream().anyMatch(item -> item.getKey().equals(key)));
 
-        service.close();
+            service.close();
+        });
+
     }
 
     @Test
@@ -311,16 +313,16 @@ class ServiceTest {
         StatusResponse insert = (StatusResponse) service.send(new InsertRequest(42, TTLType.SECONDS, 30, key));
         assertTrue(insert.success());
 
-        Thread.sleep(100); // asegurar algún registro
+        Awaitility.await().atMost(Duration.ofMillis(200)).untilAsserted(() -> {
+            StatResponse stat = (StatResponse) service.send(new StatRequest(key));
+            assertTrue(stat.success());
+            assertTrue(stat.readsPerMinute() >= 0);
+            assertTrue(stat.writesPerMinute() >= 0);
+            assertTrue(stat.totalReads() >= 0);
+            assertTrue(stat.totalWrites() >= 0);
 
-        StatResponse stat = (StatResponse) service.send(new StatRequest(key));
-        assertTrue(stat.success());
-        assertTrue(stat.readsPerMinute() >= 0);
-        assertTrue(stat.writesPerMinute() >= 0);
-        assertTrue(stat.totalReads() >= 0);
-        assertTrue(stat.totalWrites() >= 0);
-
-        service.close();
+            service.close();
+        });
     }
 
     @Test
@@ -515,16 +517,17 @@ class ServiceTest {
             latch.countDown();
         });
 
-        Thread.sleep(100); // que le de tiempo a registrarse
 
-        StatusResponse pub = (StatusResponse) service.send(new PublishRequest(channel, payload));
-        assertTrue(pub.success());
+        Awaitility.await().atMost(Duration.ofMillis(200)).untilAsserted(() -> {
+            StatusResponse pub = (StatusResponse) service.send(new PublishRequest(channel, payload));
+            assertTrue(pub.success());
 
-        boolean success = latch.await(2, TimeUnit.SECONDS);
-        assertTrue(success, "No se recibió el mensaje a tiempo");
-        assertEquals(payload, received.toString());
+            boolean success = latch.await(2, TimeUnit.SECONDS);
+            assertTrue(success, "No se recibió el mensaje a tiempo");
+            assertEquals(payload, received.toString());
 
-        service.close();
+            service.close();
+        });
     }
 
     @Test
@@ -551,17 +554,17 @@ class ServiceTest {
             latch.countDown();
         });
 
-        Thread.sleep(100); // tiempo para que se registre la suscripción
+        Awaitility.await().atMost(Duration.ofMillis(3000)).untilAsserted(() -> {
+            conn.unsubscribe(channel);
 
-        conn.unsubscribe(channel);
+            StatusResponse pub = (StatusResponse) service.send(new PublishRequest(channel, payload));
+            assertTrue(pub.success());
 
-        StatusResponse pub = (StatusResponse) service.send(new PublishRequest(channel, payload));
-        assertTrue(pub.success());
+            boolean success = latch.await(2, TimeUnit.SECONDS);
+            assertFalse(success, "Se recibió mensaje después de desuscribirse");
 
-        boolean success = latch.await(2, TimeUnit.SECONDS);
-        assertFalse(success, "Se recibió mensaje después de desuscribirse");
-
-        service.close();
+            service.close();
+        });
     }
 
 
