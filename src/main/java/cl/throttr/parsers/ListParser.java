@@ -56,10 +56,6 @@ public class ListParser implements ResponseParser {
             long keysInFragment = Binary.read(buf, i, ValueSize.UINT64);
             i += 8;
 
-            if (keysInFragment > (Integer.MAX_VALUE / (3 + 8 + size.getValue()))) {
-                throw new ArithmeticException("Too many keys in fragment: " + keysInFragment);
-            }
-
             int perKeyHeader = 3 + 8 + size.getValue();
             int keyHeadersSize = Math.toIntExact(keysInFragment) * perKeyHeader;
 

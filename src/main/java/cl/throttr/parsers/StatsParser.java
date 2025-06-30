@@ -51,9 +51,6 @@ public class StatsParser implements ResponseParser {
             i += 8;
 
             int perKeyHeader = 33;
-            if (keysInFragment > (Integer.MAX_VALUE / perKeyHeader)) {
-                throw new ArithmeticException("Too many keys in fragment: " + keysInFragment);
-            }
 
             int keyHeadersSize = Math.toIntExact(keysInFragment) * perKeyHeader;
             if (buf.readableBytes() < i - index + keyHeadersSize) return null;

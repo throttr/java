@@ -17,11 +17,11 @@ package cl.throttr.responses;
 
 public class ListItem {
     private String key;
-    private final int keyLength;
-    private final int keyType;
-    private final int ttlType;
-    private final long expiresAt;
-    private final long bytesUsed;
+    public final int keyLength;
+    public final int keyType;
+    public final int ttlType;
+    public final long expiresAt;
+    public final long bytesUsed;
 
     public ListItem(String key, int keyLength, int keyType, int ttlType, long expiresAt, long bytesUsed) {
         this.key = key;
@@ -34,26 +34,6 @@ public class ListItem {
 
     public String getKey() {
         return key;
-    }
-
-    public int getKeyLength() {
-        return keyLength;
-    }
-
-    public int getKeyType() {
-        return keyType;
-    }
-
-    public int getTtlType() {
-        return ttlType;
-    }
-
-    public long getExpiresAt() {
-        return expiresAt;
-    }
-
-    public long getBytesUsed() {
-        return bytesUsed;
     }
 
     public void setKey(String key) {

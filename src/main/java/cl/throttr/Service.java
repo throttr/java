@@ -108,9 +108,6 @@ public class Service implements AutoCloseable {
      * @return Connection
      */
     public Connection getConnection() {
-        if (connections.isEmpty()) {
-            throw new IllegalStateException("There are no available connections.");
-        }
         int index = roundRobinIndex.getAndUpdate(i -> (i + 1) % connections.size());
         return connections.get(index);
     }

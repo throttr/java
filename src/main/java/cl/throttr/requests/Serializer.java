@@ -18,8 +18,6 @@ public class Serializer {
             case InfoRequest info -> info.toBytes();
             case StatRequest stat -> stat.toBytes();
             case StatsRequest stats -> stats.toBytes();
-            case SubscribeRequest subscribe -> subscribe.toBytes();
-            case UnsubscribeRequest unsubscribe -> unsubscribe.toBytes();
             case PublishRequest publish -> publish.toBytes(size);
             case ConnectionsRequest connections -> connections.toBytes();
             case ConnectionRequest connection -> connection.toBytes();

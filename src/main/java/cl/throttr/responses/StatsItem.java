@@ -16,12 +16,12 @@
 package cl.throttr.responses;
 
 public class StatsItem {
-    private String key;
-    private final int keyLength;
-    private final long readsPerMinute;
-    private final long writesPerMinute;
-    private final long totalReads;
-    private final long totalWrites;
+    public String key;
+    public final int keyLength;
+    public final long readsPerMinute;
+    public final long writesPerMinute;
+    public final long totalReads;
+    public final long totalWrites;
 
     public StatsItem(String key, int keyLength, long readsPerMinute, long writesPerMinute, long totalReads, long totalWrites) {
         this.key = key;
@@ -34,26 +34,6 @@ public class StatsItem {
 
     public String getKey() {
         return key;
-    }
-
-    public int getKeyLength() {
-        return keyLength;
-    }
-
-    public long getReadsPerMinute() {
-        return readsPerMinute;
-    }
-
-    public long getWritesPerMinute() {
-        return writesPerMinute;
-    }
-
-    public long getTotalReads() {
-        return totalReads;
-    }
-
-    public long getTotalWrites() {
-        return totalWrites;
     }
 
     public void setKey(String key) {

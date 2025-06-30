@@ -53,10 +53,6 @@ public class ConnectionsParser implements ResponseParser {
             long count = Binary.read(buf, i, ValueSize.UINT64);
             i += 8;
 
-            if (count > (Integer.MAX_VALUE / ENTRY_SIZE)) {
-                throw new ArithmeticException("Too many connections in fragment: " + count);
-            }
-
             int totalFragmentBytes = Math.toIntExact(count) * ENTRY_SIZE;
             if (buf.readableBytes() < i - index + totalFragmentBytes) return null;
 
