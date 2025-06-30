@@ -50,15 +50,15 @@ public class StatsParser implements ResponseParser {
             long keysInFragment = Binary.read(buf, i, ValueSize.UINT64);
             i += 8;
 
-            int perKeyHeader = 33;
+            long perKeyHeader = 33;
 
-            int keyHeadersSize = Math.toIntExact(keysInFragment) * perKeyHeader;
+            long keyHeadersSize = keysInFragment * perKeyHeader;
             if (buf.readableBytes() < i - index + keyHeadersSize) return null;
 
             List<StatsItem> scopedItems = new ArrayList<>();
             List<Integer> keyLengths = new ArrayList<>();
 
-            for (int j = 0; j < keysInFragment; j++) {
+            for (long j = 0; j < keysInFragment; j++) {
                 int keyLength = buf.getUnsignedByte(i++);
                 long readsPerMin  = Binary.read(buf, i, ValueSize.UINT64); i += 8;
                 long writesPerMin = Binary.read(buf, i, ValueSize.UINT64); i += 8;
@@ -69,7 +69,7 @@ public class StatsParser implements ResponseParser {
                 keyLengths.add(keyLength);
             }
 
-            int totalKeyBytes = keyLengths.stream().mapToInt(Integer::intValue).sum();
+            long totalKeyBytes = keyLengths.stream().mapToInt(Integer::intValue).sum();
             if (buf.readableBytes() < i - index + totalKeyBytes) return null;
 
             for (int j = 0; j < scopedItems.size(); j++) {

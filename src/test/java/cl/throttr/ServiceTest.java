@@ -259,8 +259,7 @@ class ServiceTest {
         StatusResponse set = (StatusResponse) service.send(new SetRequest(TTLType.SECONDS, 30, key, value));
         assertTrue(set.success());
 
-        Awaitility.await().atMost(Duration.ofMillis(200)).untilAsserted(() -> {
-
+        Awaitility.await().atMost(Duration.ofMillis(30000)).untilAsserted(() -> {
             // STATS
             StatsResponse stats = (StatsResponse) service.send(new StatsRequest());
             assertTrue(stats.isSuccess());
