@@ -24,8 +24,6 @@ public class StatusParser implements ResponseParser {
 
     @Override
     public ReadResult tryParse(ByteBuf buf) {
-        if (buf.readableBytes() < SIZE) return null;
-
         byte[] data = new byte[1];
         buf.getBytes(buf.readerIndex(), data);
         StatusResponse response = StatusResponse.fromBytes(data);

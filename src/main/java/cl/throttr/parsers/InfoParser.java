@@ -27,10 +27,7 @@ public class InfoParser implements ResponseParser {
         int index = buf.readerIndex();
         if (buf.readableBytes() < 1 + EXPECTED_LENGTH) return null;
 
-        byte status = buf.getByte(index);
-        if (status != 0x01) {
-            return null;
-        }
+        buf.getByte(index);
 
         byte[] merged = new byte[EXPECTED_LENGTH + 1];
         buf.getBytes(index, merged);

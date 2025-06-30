@@ -37,11 +37,6 @@ public class ChannelsParser implements ResponseParser {
 
         // Validar mínimo 1 byte para status
         if (buf.readableBytes() < 1) return null;
-        byte status = buf.getByte(start);
-        if (status != 0x01) {
-            buf.readerIndex(start + 1);
-            return new ReadResult(new ChannelsResponse(false, List.of()), 1);
-        }
 
         // Validar header de fragments
         if (buf.readableBytes() < 1 + HEADER_SIZE) return null;

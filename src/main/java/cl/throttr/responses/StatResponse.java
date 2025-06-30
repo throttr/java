@@ -20,7 +20,6 @@ import cl.throttr.utils.Binary;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.Objects;
 
 public record StatResponse(
         boolean success,
