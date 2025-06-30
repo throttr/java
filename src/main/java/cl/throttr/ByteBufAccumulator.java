@@ -86,21 +86,15 @@ public class ByteBufAccumulator extends SimpleChannelInboundHandler<ByteBuf> {
     private boolean handleChannelMessage() {
         int readerIndex = buffer.readerIndex();
 
-        if (buffer.readableBytes() < 1 + size.getValue()) {
-            return false;
-        }
+        if (buffer.readableBytes() < 1 + size.getValue()) return false;
 
         int channelSize = Byte.toUnsignedInt(buffer.getByte(readerIndex + 1));
         int headerSize = 1 + 1 + size.getValue() + channelSize;
 
-        if (buffer.readableBytes() < headerSize) {
-            return false;
-        }
+        if (buffer.readableBytes() < headerSize) return false;
 
         long payloadLength = Binary.read(buffer, readerIndex + 2, size);
-        if (buffer.readableBytes() < headerSize + payloadLength) {
-            return false;
-        }
+        if (buffer.readableBytes() < headerSize + payloadLength) return false;
 
         byte[] channelBytes = new byte[channelSize];
         buffer.getBytes(readerIndex + 2 + size.getValue(), channelBytes);
@@ -129,11 +123,6 @@ public class ByteBufAccumulator extends SimpleChannelInboundHandler<ByteBuf> {
 
         int expectedType = pendingRequest.type();
         ResponseParser parser = parsers.get(expectedType);
-        if (parser == null) {
-            buffer.resetReaderIndex();
-            throw new IllegalArgumentException("Unknown response type: " + expectedType);
-        }
-
         ReadResult result = parser.tryParse(buffer);
         if (result == null) {
             buffer.resetReaderIndex();
