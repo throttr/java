@@ -70,7 +70,7 @@ public class Connection implements AutoCloseable {
         return Dispatcher.dispatch(channel, pending, request, size);
     }
 
-    public void subscribe(String name, Consumer<String> callback) throws IOException {
+    public void subscribe(String name, Consumer<String> callback) {
         subscriptions.put(name, callback);
 
         SubscribeRequest request = new SubscribeRequest(name);
@@ -79,7 +79,7 @@ public class Connection implements AutoCloseable {
         channel.writeAndFlush(Unpooled.wrappedBuffer(buffer)).syncUninterruptibly();
     }
 
-    public void unsubscribe(String name) throws IOException {
+    public void unsubscribe(String name) {
         subscriptions.remove(name);
 
         UnsubscribeRequest request = new UnsubscribeRequest(name);

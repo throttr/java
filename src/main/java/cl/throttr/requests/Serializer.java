@@ -3,6 +3,9 @@ package cl.throttr.requests;
 import cl.throttr.enums.ValueSize;
 
 public class Serializer {
+
+    private Serializer() {}
+
     public static byte[] invoke(Object request, ValueSize size) {
         return switch (request) {
             case InsertRequest insert -> insert.toBytes(size);

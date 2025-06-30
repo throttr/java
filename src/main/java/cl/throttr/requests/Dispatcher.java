@@ -35,40 +35,49 @@ public final class Dispatcher {
         }
 
         if (request instanceof List<?> list) {
-            ByteArrayOutputStream totalBuffer = new ByteArrayOutputStream();
-            List<Integer> types = new ArrayList<>();
-
-            for (Object req : list) {
-                byte[] buffer = Serializer.invoke(req, size);
-                totalBuffer.writeBytes(buffer);
-                types.add(Byte.toUnsignedInt(buffer[0]));
-            }
-
-            byte[] finalBuffer = totalBuffer.toByteArray();
-            List<CompletableFuture<Object>> futures = new ArrayList<>();
-
-            for (int type : types) {
-                CompletableFuture<Object> f = new CompletableFuture<>();
-                pending.add(new PendingRequest(f, type));
-                futures.add(f);
-            }
-
-            channel.writeAndFlush(Unpooled.wrappedBuffer(finalBuffer)).syncUninterruptibly();
-
-            List<Object> responses = new ArrayList<>();
-            for (CompletableFuture<Object> f : futures) {
-                try {
-                    responses.add(f.get());
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    throw new IOException("Thread was interrupted while awaiting response", e);
-                } catch (ExecutionException e) {
-                    throw new IOException("Failed while awaiting response", e.getCause());
-                }
-            }
-            return responses;
+            return dispatchBatch(channel, pending, list, size);
         }
 
+        return dispatchSingle(channel, pending, request, size);
+    }
+
+    private static Object dispatchBatch(Channel channel, Queue<PendingRequest> pending, List<?> list, ValueSize size) throws IOException {
+        ByteArrayOutputStream totalBuffer = new ByteArrayOutputStream();
+        List<Integer> types = new ArrayList<>();
+
+        for (Object req : list) {
+            byte[] buffer = Serializer.invoke(req, size);
+            totalBuffer.writeBytes(buffer);
+            types.add(Byte.toUnsignedInt(buffer[0]));
+        }
+
+        byte[] finalBuffer = totalBuffer.toByteArray();
+        List<CompletableFuture<Object>> futures = new ArrayList<>();
+
+        for (int type : types) {
+            CompletableFuture<Object> f = new CompletableFuture<>();
+            pending.add(new PendingRequest(f, type));
+            futures.add(f);
+        }
+
+        channel.writeAndFlush(Unpooled.wrappedBuffer(finalBuffer)).syncUninterruptibly();
+
+        List<Object> responses = new ArrayList<>();
+        for (CompletableFuture<Object> f : futures) {
+            try {
+                responses.add(f.get());
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IOException("Thread was interrupted while awaiting batch response", e);
+            } catch (ExecutionException e) {
+                throw new IOException("Failed while awaiting batch response", e.getCause());
+            }
+        }
+
+        return responses;
+    }
+
+    private static Object dispatchSingle(Channel channel, Queue<PendingRequest> pending, Object request, ValueSize size) throws IOException {
         byte[] buffer = Serializer.invoke(request, size);
         CompletableFuture<Object> future = new CompletableFuture<>();
         int type = Byte.toUnsignedInt(buffer[0]);
