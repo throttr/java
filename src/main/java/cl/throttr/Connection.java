@@ -26,7 +26,6 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.*;
@@ -68,114 +67,7 @@ public class Connection implements AutoCloseable {
     }
 
     public Object send(Object request) throws IOException {
-        // Detect if connection is alive
-        if (!channel.isActive()) {
-            throw new IOException("Socket is already closed");
-        }
-
-        // If is a batch of <T>
-        if (request instanceof List<?> list) {
-            // Create a buffer to merge requests
-            ByteArrayOutputStream totalBuffer = new ByteArrayOutputStream();
-
-            // Capture the types
-            List<Integer> types = new ArrayList<>();
-
-            // Per request
-            for (Object req : list) {
-                // Build his buffer
-                byte[] buffer = getRequestBuffer(req, size);
-                // Write that buffer inside merged buffer
-                totalBuffer.writeBytes(buffer);
-                // Push type
-                types.add(Byte.toUnsignedInt(buffer[0]));
-            }
-
-            // This convert totalBuffer into a consumable array of bytes
-            byte[] finalBuffer = totalBuffer.toByteArray();
-
-            // Build a futures to resolve here
-            List<CompletableFuture<Object>> futures = new ArrayList<>();
-
-            // By request
-            for (int type : types) {
-                // Build a completable future of Object
-                CompletableFuture<Object> f = new CompletableFuture<>();
-
-                // Add pending function as pending request
-                pending.add(new PendingRequest(f, type));
-                // Push this function to the local promises array
-                futures.add(f);
-            }
-
-            // Write
-            channel.writeAndFlush(Unpooled.wrappedBuffer(finalBuffer)).syncUninterruptibly();
-
-            // Generate a responses as a list
-            List<Object> responses = new ArrayList<>();
-
-            // One by one on pending requests
-            for (CompletableFuture<Object> f : futures) {
-                try {
-                    // Try to resolve and push as response
-                    responses.add(f.get());
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    throw new IOException("Thread was interrupted while awaiting response", e);
-                } catch (Exception e) {
-                    throw new IOException("Failed while awaiting response", e);
-                }
-            }
-            // Return the response batch
-            return responses;
-        }
-
-        // Build the buffer
-        byte[] buffer = getRequestBuffer(request, size);
-
-        // Make a completable future for the response object
-        CompletableFuture<Object> future = new CompletableFuture<>();
-
-        // Add the future to the pending queue
-        int type = Byte.toUnsignedInt(buffer[0]);
-        pending.add(new PendingRequest(future, type));
-
-        // Write
-        channel.writeAndFlush(Unpooled.wrappedBuffer(buffer)).syncUninterruptibly();
-
-        try {
-            // Return the response object
-            return future.get();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new IOException("Thread was interrupted while awaiting response", e);
-        } catch (Exception e) {
-            throw new IOException("Failed while awaiting response", e);
-        }
-    }
-
-    public static byte[] getRequestBuffer(Object request, ValueSize size) {
-        return switch (request) {
-            case InsertRequest insert -> insert.toBytes(size);
-            case QueryRequest query -> query.toBytes();
-            case UpdateRequest update -> update.toBytes(size);
-            case PurgeRequest purge -> purge.toBytes();
-            case SetRequest set -> set.toBytes(size);
-            case GetRequest get -> get.toBytes();
-            case ListRequest list -> list.toBytes();
-            case InfoRequest info -> info.toBytes();
-            case StatRequest stat -> stat.toBytes();
-            case StatsRequest stats -> stats.toBytes();
-            case SubscribeRequest subscribe -> subscribe.toBytes();
-            case UnsubscribeRequest unsubscribe -> unsubscribe.toBytes();
-            case PublishRequest publish -> publish.toBytes(size);
-            case ConnectionsRequest connections -> connections.toBytes();
-            case ConnectionRequest connection -> connection.toBytes();
-            case ChannelsRequest channels -> channels.toBytes();
-            case ChannelRequest channel -> channel.toBytes();
-            case WhoAmiRequest whoami -> whoami.toBytes();
-            case null, default -> throw new IllegalArgumentException("Unsupported request type");
-        };
+        return Dispatcher.dispatch(channel, pending, request, size);
     }
 
     public void subscribe(String name, Consumer<String> callback) throws IOException {
