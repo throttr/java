@@ -265,7 +265,7 @@ class ServiceTest {
             StatsResponse stats = (StatsResponse) service.send(new StatsRequest());
             assertTrue(stats.isSuccess());
             assertNotNull(stats.getItems());
-            assertTrue(stats.getItems().stream().anyMatch(item -> item.getKey().equals(key)));
+            assertTrue(stats.getItems().stream().anyMatch(item -> item.key.equals(key)));
 
             service.close();
         });
@@ -313,8 +313,8 @@ class ServiceTest {
         StatusResponse insert = (StatusResponse) service.send(new InsertRequest(42, TTLType.SECONDS, 30, key));
         assertTrue(insert.success());
 
-        StatResponse error_stat = (StatResponse) service.send(new StatRequest("MISSING_KEY"));
-        assertFalse(error_stat.success());
+        StatResponse errorStat = (StatResponse) service.send(new StatRequest("MISSING_KEY"));
+        assertFalse(errorStat.success());
 
         Awaitility.await().atMost(Duration.ofMillis(200)).untilAsserted(() -> {
             StatResponse stat = (StatResponse) service.send(new StatRequest(key));
@@ -434,9 +434,9 @@ class ServiceTest {
         assertTrue(response.found);
         assertNotNull(response.item);
 
-        ConnectionResponse error_response = (ConnectionResponse) service.send(new ConnectionRequest("b7e0f7c8b6a04c678727303c3a90b341"));
-        assertFalse(error_response.found);
-        assertNull(error_response.item);
+        ConnectionResponse errorResponse = (ConnectionResponse) service.send(new ConnectionRequest("b7e0f7c8b6a04c678727303c3a90b341"));
+        assertFalse(errorResponse.found);
+        assertNull(errorResponse.item);
 
         ConnectionsItem item = response.item;
         assertEquals(32, item.id.length());

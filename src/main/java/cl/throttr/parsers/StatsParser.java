@@ -77,7 +77,7 @@ public class StatsParser implements ResponseParser {
                 byte[] keyBytes = new byte[len];
                 buf.getBytes(i, keyBytes);
                 i += len;
-                scopedItems.get(j).setKey(new String(keyBytes, StandardCharsets.UTF_8));
+                scopedItems.get(j).key = new String(keyBytes, StandardCharsets.UTF_8);
             }
 
             items.addAll(scopedItems);
