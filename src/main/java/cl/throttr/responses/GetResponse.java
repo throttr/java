@@ -31,6 +31,28 @@ public record GetResponse(
         long ttl,
         byte[] value
 ) {
+    /**
+     * Equals
+     *
+     * @param o   the reference object with which to compare.
+     * @return
+     */
+    @Override
+    public boolean equals(Object o) {
+        return this == o;
+    }
+
+    /**
+     * Hashcode
+     *
+     * @return
+     */
+    @Override
+    public int hashCode() {
+        int result = java.util.Objects.hash(success, ttlType, ttl);
+        result = 31 * result + java.util.Arrays.hashCode(value);
+        return result;
+    }
 
     /**
      * To string
