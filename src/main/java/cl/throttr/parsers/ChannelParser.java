@@ -37,7 +37,6 @@ public class ChannelParser implements ResponseParser {
 
         byte status = buf.getByte(start);
         if (status != 0x01) {
-            buf.readerIndex(start + 1);
             return new ReadResult(new ChannelResponse(false, List.of()), 1);
         }
 

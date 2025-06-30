@@ -81,10 +81,6 @@ public record GetResponse(
      * @return QueryResponse
      */
     public static GetResponse fromBytes(byte[] data, ValueSize size) {
-        if (data.length < 1) {
-            throw new IllegalArgumentException("Invalid GetResponse: empty response");
-        }
-
         ByteBuffer buffer = ByteBuffer.wrap(data);
         buffer.order(ByteOrder.LITTLE_ENDIAN);
 
@@ -96,10 +92,6 @@ public record GetResponse(
         TTLType ttlType = TTLType.fromByte(buffer.get());
         long ttl = Binary.read(buffer, size);
         long valueSize = Binary.read(buffer, size);
-
-        if (buffer.remaining() != valueSize) {
-            throw new IllegalArgumentException("Expected " + valueSize + " bytes for value but got " + buffer.remaining());
-        }
 
         byte[] value = new byte[(int) valueSize];
         buffer.get(value);

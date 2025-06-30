@@ -36,7 +36,6 @@ public class GetParser implements ResponseParser {
         byte success = buf.getByte(index);
 
         if (success == 0) {
-            if (buf.readableBytes() < 1) return null;
             byte[] data = new byte[1];
             buf.getBytes(index, data);
             return new ReadResult(GetResponse.fromBytes(data, size), 1);

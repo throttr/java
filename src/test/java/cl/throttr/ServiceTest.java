@@ -491,6 +491,9 @@ class ServiceTest {
         assertNotNull(response.connections);
         assertTrue(response.connections.size() >= 1);
 
+        ChannelResponse errorResponse = (ChannelResponse) service.send(new ChannelRequest("ABCCDEEF"));
+        assertFalse(errorResponse.success);
+
         for (ChannelConnectionItem item : response.connections) {
             assertNotNull(item.id);
             assertEquals(32, item.id.length());

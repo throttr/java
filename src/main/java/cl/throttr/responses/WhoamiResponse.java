@@ -23,6 +23,6 @@ public class WhoamiResponse {
 
     public WhoamiResponse(boolean success, byte[] uuidBytes) {
         this.success = success;
-        this.uuid = (uuidBytes == null) ? null : HexFormat.of().formatHex(uuidBytes);
+        this.uuid = HexFormat.of().formatHex(uuidBytes);
     }
 }

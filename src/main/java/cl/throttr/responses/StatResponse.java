@@ -39,31 +39,4 @@ public record StatResponse(
 
         return new StatResponse(success, rpm, wpm, tr, tw);
     }
-
-    @Override
-    public String toString() {
-        return "StatResponse{" +
-                "success=" + success +
-                ", readsPerMinute=" + readsPerMinute +
-                ", writesPerMinute=" + writesPerMinute +
-                ", totalReads=" + totalReads +
-                ", totalWrites=" + totalWrites +
-                '}';
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof StatResponse(boolean success1, long readsPerMinuteParam, long writesPerMinuteParam, long reads, long writes))) return false;
-        return success == success1 &&
-                readsPerMinute == readsPerMinuteParam &&
-                writesPerMinute == writesPerMinuteParam &&
-                totalReads == reads &&
-                totalWrites == writes;
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(success, readsPerMinute, writesPerMinute, totalReads, totalWrites);
-    }
 }

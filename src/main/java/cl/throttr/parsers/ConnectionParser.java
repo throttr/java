@@ -27,8 +27,6 @@ public class ConnectionParser implements ResponseParser {
     public ReadResult tryParse(ByteBuf buf) {
         int index = buf.readerIndex();
 
-        if (buf.readableBytes() < 1) return null;
-
         byte status = buf.getByte(index);
 
         if (status == 0x00) {
