@@ -16,7 +16,7 @@
 package cl.throttr.responses;
 
 public class StatsItem {
-    public String key;
+    private String key;
     public final int keyLength;
     public final long readsPerMinute;
     public final long writesPerMinute;
@@ -30,5 +30,13 @@ public class StatsItem {
         this.writesPerMinute = writesPerMinute;
         this.totalReads = totalReads;
         this.totalWrites = totalWrites;
+    }
+
+    public String getKey() {
+        return key;
+    }
+
+    public void setKey(String key) {
+        this.key = key;
     }
 }

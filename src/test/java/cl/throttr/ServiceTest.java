@@ -265,7 +265,7 @@ class ServiceTest {
             StatsResponse stats = (StatsResponse) service.send(new StatsRequest());
             assertTrue(stats.isSuccess());
             assertNotNull(stats.getItems());
-            assertTrue(stats.getItems().stream().anyMatch(item -> item.key.equals(key)));
+            assertTrue(stats.getItems().stream().anyMatch(item -> item.getKey().equals(key)));
 
             service.close();
         });
