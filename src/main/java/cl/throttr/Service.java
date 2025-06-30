@@ -77,9 +77,9 @@ public class Service implements AutoCloseable {
     /**
      * Connect
      *
-     * @throws IOException Sockets can fail
+     * @throws InterruptedException Can be interrupted
      */
-    public void connect() throws IOException {
+    public void connect() throws InterruptedException {
         for (int i = 0; i < maxConnections; i++) {
             Connection conn = new Connection(host, port, size);
             connections.add(conn);
@@ -117,7 +117,7 @@ public class Service implements AutoCloseable {
      * Close
      */
     @Override
-    public void close() throws IOException {
+    public void close() throws InterruptedException {
         for (Connection conn : connections) {
             conn.close();
         }

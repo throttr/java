@@ -37,30 +37,25 @@ public class Connection implements AutoCloseable {
     private final Map<String, Consumer<String>> subscriptions = new ConcurrentHashMap<>();
     private final ByteBufAccumulator accumulator;
 
-    public Connection(String host, int port, ValueSize size) throws IOException {
+    public Connection(String host, int port, ValueSize size) throws InterruptedException {
         this.size = size;
         this.accumulator = new ByteBufAccumulator(this.pending, this.subscriptions, size);
         this.group = new NioEventLoopGroup();
 
-        try {
-            Bootstrap bootstrap = new Bootstrap();
-            bootstrap.group(group)
-                    .channel(NioSocketChannel.class)
-                    .option(ChannelOption.TCP_NODELAY, true)
-                    .handler(new ChannelInitializer<SocketChannel>() {
-                        @Override
-                        protected void initChannel(SocketChannel ch) {
-                            ch.pipeline()
-                                    .addLast(accumulator);
-                        }
-                    });
+        Bootstrap bootstrap = new Bootstrap();
+        bootstrap.group(group)
+                .channel(NioSocketChannel.class)
+                .option(ChannelOption.TCP_NODELAY, true)
+                .handler(new ChannelInitializer<SocketChannel>() {
+                    @Override
+                    protected void initChannel(SocketChannel ch) {
+                        ch.pipeline()
+                                .addLast(accumulator);
+                    }
+                });
 
-            ChannelFuture future = bootstrap.connect(host, port).sync();
-            this.channel = future.channel();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new IOException("Failed to connect", e);
-        }
+        ChannelFuture future = bootstrap.connect(host, port).sync();
+        this.channel = future.channel();
     }
 
     public Object send(Object request) throws IOException, InterruptedException, ExecutionException {
@@ -86,12 +81,8 @@ public class Connection implements AutoCloseable {
     }
 
     @Override
-    public void close() {
-        try {
-            if (channel != null) channel.close().sync();
-        } catch (InterruptedException ignored) {
-            Thread.currentThread().interrupt();
-        }
+    public void close() throws InterruptedException {
+        if (channel != null) channel.close().sync();
         group.shutdownGracefully();
     }
 }
