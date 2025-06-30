@@ -72,66 +72,77 @@ public class ByteBufAccumulator extends SimpleChannelInboundHandler<ByteBuf> {
             if (buffer.readableBytes() < 1) return;
 
             buffer.markReaderIndex();
-
             int type = buffer.getUnsignedByte(buffer.readerIndex());
 
             if (type == 0x19) {
-                int readerIndex = buffer.readerIndex();
-                if (buffer.readableBytes() < 1 + size.getValue()) {
-                    return;
-                }
-
-                int channelSize = Byte.toUnsignedInt(buffer.getByte(readerIndex + 1));
-                int headerSize = 1 + 1 + size.getValue() + channelSize;
-
-                if (buffer.readableBytes() < headerSize) {
-                    return;
-                }
-
-                long payloadLength = Binary.read(buffer, readerIndex + 2, size);
-                if (buffer.readableBytes() < headerSize + payloadLength) {
-                    return;
-                }
-
-                byte[] channelBytes = new byte[channelSize];
-                buffer.getBytes(readerIndex + 2 + size.getValue(), channelBytes);
-                String channel = new String(channelBytes);
-
-                byte[] payloadBytes = new byte[(int) payloadLength];
-                buffer.getBytes(readerIndex + headerSize, payloadBytes);
-                String payload = new String(payloadBytes);
-
-                buffer.readerIndex(readerIndex + headerSize + (int) payloadLength);
-
-                Consumer<String> callback = subscriptions.get(channel);
-                if (callback != null) {
-                    callback.accept(payload);
-                }
+                if (!handleChannelMessage()) return;
                 continue;
             }
 
-            PendingRequest pendingRequest = pending.peek();
-            if (pendingRequest == null) {
-                buffer.resetReaderIndex();
-                return;
-            }
-
-            int expectedType = pendingRequest.type();
-            ResponseParser parser = parsers.get(expectedType);
-            if (parser == null) {
-                buffer.resetReaderIndex();
-                throw new IllegalArgumentException("Unknown response type: " + expectedType);
-            }
-
-            ReadResult result = parser.tryParse(buffer);
-            if (result == null) {
-                buffer.resetReaderIndex();
-                return;
-            }
-
-            buffer.skipBytes(result.consumed());
-            pending.poll().future().complete(result.value());
+            if (!handlePendingRequest()) return;
         }
+    }
+
+    private boolean handleChannelMessage() {
+        int readerIndex = buffer.readerIndex();
+
+        if (buffer.readableBytes() < 1 + size.getValue()) {
+            return false;
+        }
+
+        int channelSize = Byte.toUnsignedInt(buffer.getByte(readerIndex + 1));
+        int headerSize = 1 + 1 + size.getValue() + channelSize;
+
+        if (buffer.readableBytes() < headerSize) {
+            return false;
+        }
+
+        long payloadLength = Binary.read(buffer, readerIndex + 2, size);
+        if (buffer.readableBytes() < headerSize + payloadLength) {
+            return false;
+        }
+
+        byte[] channelBytes = new byte[channelSize];
+        buffer.getBytes(readerIndex + 2 + size.getValue(), channelBytes);
+        String channel = new String(channelBytes);
+
+        byte[] payloadBytes = new byte[(int) payloadLength];
+        buffer.getBytes(readerIndex + headerSize, payloadBytes);
+        String payload = new String(payloadBytes);
+
+        buffer.readerIndex(readerIndex + headerSize + (int) payloadLength);
+
+        Consumer<String> callback = subscriptions.get(channel);
+        if (callback != null) {
+            callback.accept(payload);
+        }
+
+        return true;
+    }
+
+    private boolean handlePendingRequest() {
+        PendingRequest pendingRequest = pending.peek();
+        if (pendingRequest == null) {
+            buffer.resetReaderIndex();
+            return false;
+        }
+
+        int expectedType = pendingRequest.type();
+        ResponseParser parser = parsers.get(expectedType);
+        if (parser == null) {
+            buffer.resetReaderIndex();
+            throw new IllegalArgumentException("Unknown response type: " + expectedType);
+        }
+
+        ReadResult result = parser.tryParse(buffer);
+        if (result == null) {
+            buffer.resetReaderIndex();
+            return false;
+        }
+
+        buffer.skipBytes(result.consumed());
+        pending.poll().future().complete(result.value());
+        return true;
     }
 
     @Override

@@ -17,7 +17,6 @@ package cl.throttr.responses;
 
 import cl.throttr.enums.ValueSize;
 import cl.throttr.utils.Binary;
-import com.sun.jdi.Value;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;

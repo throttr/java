@@ -119,6 +119,9 @@ public class Connection implements AutoCloseable {
                 try {
                     // Try to resolve and push as response
                     responses.add(f.get());
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new IOException("Thread was interrupted while awaiting response", e);
                 } catch (Exception e) {
                     throw new IOException("Failed while awaiting response", e);
                 }
@@ -143,6 +146,9 @@ public class Connection implements AutoCloseable {
         try {
             // Return the response object
             return future.get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("Thread was interrupted while awaiting response", e);
         } catch (Exception e) {
             throw new IOException("Failed while awaiting response", e);
         }
@@ -195,6 +201,7 @@ public class Connection implements AutoCloseable {
         try {
             if (channel != null) channel.close().sync();
         } catch (InterruptedException ignored) {
+            Thread.currentThread().interrupt();
         }
         group.shutdownGracefully();
     }
