@@ -15,44 +15,27 @@
 
 package cl.throttr.responses;
 
-import cl.throttr.enums.TTLType;
 import cl.throttr.enums.ValueSize;
 import cl.throttr.utils.Binary;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
-/**
- * Full response
- */
-public record GetResponse(
+public record StatResponse(
         boolean success,
-        TTLType ttlType,
-        long ttl,
-        byte[] value
+        long readsPerMinute,
+        long writesPerMinute,
+        long totalReads,
+        long totalWrites
 ) {
-    /**
-     * Parse from bytes
-     *
-     * @param data Byte array (must be 18 bytes)
-     * @return QueryResponse
-     */
-    public static GetResponse fromBytes(byte[] data, ValueSize size) {
-        ByteBuffer buffer = ByteBuffer.wrap(data);
-        buffer.order(ByteOrder.LITTLE_ENDIAN);
+    public static StatResponse fromBytes(byte[] data) {
+        ByteBuffer buffer = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN);
+        boolean success = Binary.read(buffer, ValueSize.UINT8) == 0x01;
+        long rpm = Binary.read(buffer, ValueSize.UINT64);
+        long wpm = Binary.read(buffer, ValueSize.UINT64);
+        long tr = Binary.read(buffer, ValueSize.UINT64);
+        long tw = Binary.read(buffer, ValueSize.UINT64);
 
-        boolean success = buffer.get() == 1;
-        if (!success) {
-            return new GetResponse(false, null, 0, null);
-        }
-
-        TTLType ttlType = TTLType.fromByte(buffer.get());
-        long ttl = Binary.read(buffer, size);
-        long valueSize = Binary.read(buffer, size);
-
-        byte[] value = new byte[(int) valueSize];
-        buffer.get(value);
-
-        return new GetResponse(true, ttlType, ttl, value);
+        return new StatResponse(success, rpm, wpm, tr, tw);
     }
 }

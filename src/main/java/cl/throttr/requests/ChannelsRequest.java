@@ -13,43 +13,26 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-package cl.throttr.responses;
+package cl.throttr.requests;
 
-import cl.throttr.enums.TTLType;
-import cl.throttr.enums.ValueSize;
-import cl.throttr.utils.Binary;
+import cl.throttr.enums.RequestType;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
 /**
- * Full response
+ * Channels request
  */
-public record QueryResponse(
-        boolean success,
-        long quota,
-        TTLType ttlType,
-        long ttl
-) {
+public record ChannelsRequest() {
     /**
-     * Parse from bytes
+     * To bytes
      *
-     * @param data Byte array (must be 18 bytes)
-     * @return QueryResponse
+     * @return byte[]
      */
-    public static QueryResponse fromBytes(byte[] data, ValueSize size) {
-        var buffer = ByteBuffer.wrap(data);
+    public byte[] toBytes() {
+        var buffer = ByteBuffer.allocate(1);
         buffer.order(ByteOrder.LITTLE_ENDIAN);
-
-        boolean success = buffer.get() == 1;
-        if (!success) {
-            return new QueryResponse(false, 0, null, 0);
-        }
-
-        long quota = Binary.read(buffer, size);
-        TTLType ttlType = TTLType.fromByte(buffer.get());
-        long ttl = Binary.read(buffer, size);
-
-        return new QueryResponse(success, quota, ttlType, ttl);
+        buffer.put((byte) RequestType.CHANNELS.getValue());
+        return buffer.array();
     }
 }

@@ -15,248 +15,74 @@
 
 package cl.throttr;
 
-import cl.throttr.enums.TTLType;
 import cl.throttr.enums.ValueSize;
 import cl.throttr.requests.*;
-import cl.throttr.responses.GetResponse;
-import cl.throttr.responses.QueryResponse;
-import cl.throttr.responses.StatusResponse;
-import cl.throttr.utils.Binary;
+import io.netty.bootstrap.Bootstrap;
+import io.netty.buffer.Unpooled;
+import io.netty.channel.*;
+import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.socket.SocketChannel;
+import io.netty.channel.socket.nio.NioSocketChannel;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.net.Socket;
-import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.function.Consumer;
 
-/**
- * Connection
- */
 public class Connection implements AutoCloseable {
-    /**
-     * Socket
-     */
-    private final Socket socket;
-
-    /**
-     * Size
-     */
     private final ValueSize size;
+    private final Channel channel;
+    private final EventLoopGroup group;
+    private final Queue<PendingRequest> pending = new ConcurrentLinkedQueue<>();
+    private final Map<String, Consumer<String>> subscriptions = new ConcurrentHashMap<>();
+    private final ByteBufAccumulator accumulator;
 
-    /**
-     * Out
-     */
-    private final OutputStream out;
-
-    /**
-     * In
-     */
-    private final InputStream in;
-
-    /**
-     * Constructor
-     *
-     * @param host
-     * @param port
-     * @param size
-     * @throws IOException
-     */
-    public Connection(String host, int port, ValueSize size) throws IOException {
-        this.socket = new Socket(host, port);
-        this.socket.setTcpNoDelay(true);
-        this.out = socket.getOutputStream();
-        this.in = socket.getInputStream();
+    public Connection(String host, int port, ValueSize size) throws InterruptedException {
         this.size = size;
+        this.accumulator = new ByteBufAccumulator(this.pending, this.subscriptions, size);
+        this.group = new NioEventLoopGroup();
+
+        Bootstrap bootstrap = new Bootstrap();
+        bootstrap.group(group)
+                .channel(NioSocketChannel.class)
+                .option(ChannelOption.TCP_NODELAY, true)
+                .handler(new ChannelInitializer<SocketChannel>() {
+                    @Override
+                    protected void initChannel(SocketChannel ch) {
+                        ch.pipeline()
+                                .addLast(accumulator);
+                    }
+                });
+
+        ChannelFuture future = bootstrap.connect(host, port).sync();
+        this.channel = future.channel();
     }
 
-    /**
-     * Send
-     *
-     * @param request
-     * @return
-     * @throws IOException
-     */
-    public Object send(Object request) throws IOException {
-        if (socket.isClosed()) {
-            throw new IOException("Socket is already closed");
-        }
-
-        if (request instanceof List<?> list) {
-            ByteArrayOutputStream totalBuffer = new ByteArrayOutputStream();
-            List<Integer> types = new ArrayList<>();
-
-            for (Object req : list) {
-                byte[] buffer = getRequestBuffer(req, size);
-                totalBuffer.write(buffer);
-                types.add(Byte.toUnsignedInt(buffer[0]));
-            }
-
-            byte[] finalBuffer = totalBuffer.toByteArray();
-            out.write(finalBuffer);
-            out.flush();
-
-            List<Object> responses = new ArrayList<>();
-            for (int type : types) {
-                int head = in.read();
-                if (head == -1) {
-                    throw new IOException("Connection closed while reading response.");
-                }
-
-                Object response = switch (type) {
-                    case 0x02 -> readQueryResponse(head);
-                    case 0x06 -> readGetResponse(head);
-                    default -> readStatusResponse(head);
-                };
-                responses.add(response);
-            }
-
-            return responses;
-        }
-
-        byte[] buffer = getRequestBuffer(request, size);
-
-        out.write(buffer);
-        out.flush();
-
-        int head = in.read();
-        if (head == -1) {
-            throw new IOException("Connection closed while reading response head.");
-        }
-
-        int type = Byte.toUnsignedInt(buffer[0]);
-
-        return switch (type) {
-            case 0x02 -> readQueryResponse(head);
-            case 0x06 -> readGetResponse(head);
-            default -> readStatusResponse(head);
-        };
+    public Object send(Object request) throws IOException, InterruptedException, ExecutionException {
+        return Dispatcher.dispatch(channel, pending, request, size);
     }
 
-    /**
-     * Get request buffer
-     *
-     * @param request
-     * @param size
-     * @return byte[]
-     */
-    public static byte[] getRequestBuffer(Object request, ValueSize size) {
-        return switch (request) {
-            case InsertRequest insert -> insert.toBytes(size);
-            case QueryRequest query -> query.toBytes();
-            case UpdateRequest update -> update.toBytes(size);
-            case PurgeRequest purge -> purge.toBytes();
-            case SetRequest set -> set.toBytes(size);
-            case GetRequest get -> get.toBytes();
-            case null, default -> throw new IllegalArgumentException("Unsupported request type");
-        };
+    public void subscribe(String name, Consumer<String> callback) {
+        subscriptions.put(name, callback);
+
+        SubscribeRequest request = new SubscribeRequest(name);
+        byte[] buffer = request.toBytes();
+
+        channel.writeAndFlush(Unpooled.wrappedBuffer(buffer)).syncUninterruptibly();
     }
 
-    /**
-     * Read full response
-     *
-     * @param head
-     * @return StatusResponse
-     * @throws IOException
-     */
-    private QueryResponse readQueryResponse(int head) throws IOException {
-        if (head != 0x01) {
-            return new QueryResponse(false, 0, TTLType.SECONDS, 0);
-        }
+    public void unsubscribe(String name) {
+        subscriptions.remove(name);
 
-        int expected = size.getValue() * 2 + 1;
-        byte[] merged = new byte[expected];
-        int offset = 0;
+        UnsubscribeRequest request = new UnsubscribeRequest(name);
+        byte[] buffer = request.toBytes();
 
-        while (offset < expected) {
-            int read = in.read(merged, offset, expected - offset);
-            if (read == -1) {
-                throw new IOException("Unexpected EOF while reading full response.");
-            }
-            offset += read;
-        }
-
-        byte[] full = new byte[1 + expected];
-        full[0] = (byte) head;
-        System.arraycopy(merged, 0, full, 1, expected);
-
-        return QueryResponse.fromBytes(full, size);
+        channel.writeAndFlush(Unpooled.wrappedBuffer(buffer)).syncUninterruptibly();
     }
 
-    /**
-     * Read get response
-     *
-     * @param head
-     * @return GetResponse
-     * @throws IOException
-     */
-    private GetResponse readGetResponse(int head) throws IOException {
-        if (head != 0x01) {
-            return new GetResponse(false, null, 0, null);
-        }
-
-        // Total: 1 byte (ttlType) + N bytes (ttl) + N bytes (valueSize)
-        int headerSize = 1 + size.getValue() + size.getValue();
-        byte[] header = new byte[headerSize];
-        int offset = 0;
-
-        while (offset < headerSize) {
-            int read = in.read(header, offset, headerSize - offset);
-            if (read == -1) {
-                throw new IOException("Unexpected EOF while reading GET header");
-            }
-            offset += read;
-        }
-
-        ByteBuffer buffer = ByteBuffer.wrap(header);
-        buffer.order(java.nio.ByteOrder.LITTLE_ENDIAN);
-
-        TTLType.fromByte(buffer.get());
-        Binary.read(buffer, size);
-        long valueSize = Binary.read(buffer, size);
-
-        if (valueSize > Integer.MAX_VALUE) {
-            throw new IOException("Value too large to handle in memory: " + valueSize);
-        }
-
-        byte[] value = new byte[(int) valueSize];
-        offset = 0;
-        while (offset < value.length) {
-            int read = in.read(value, offset, value.length - offset);
-            if (read == -1) {
-                throw new IOException("Unexpected EOF while reading GET value");
-            }
-            offset += read;
-        }
-
-        byte[] full = new byte[1 + header.length + value.length];
-        full[0] = (byte) head;
-        System.arraycopy(header, 0, full, 1, header.length);
-        System.arraycopy(value, 0, full, 1 + header.length, value.length);
-
-        return GetResponse.fromBytes(full, size);
-    }
-
-    /**
-     * Read simple response
-     *
-     * @param head
-     * @return StatusResponse
-     * @throws IOException
-     */
-    private StatusResponse readStatusResponse(int head) {
-        return new StatusResponse(head == 0x01);
-    }
-
-    /**
-     * Close
-     *
-     * @throws IOException
-     */
     @Override
-    public void close() throws IOException {
-        socket.close();
+    public void close() throws InterruptedException {
+        if (channel != null) channel.close().sync();
+        group.shutdownGracefully();
     }
 }

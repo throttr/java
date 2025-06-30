@@ -16,6 +16,7 @@
 package cl.throttr.utils;
 
 import cl.throttr.enums.ValueSize;
+import io.netty.buffer.ByteBuf;
 
 import java.nio.ByteBuffer;
 
@@ -50,6 +51,15 @@ public final class Binary {
             case UINT16 -> buffer.getShort() & 0xFFFF;
             case UINT32 -> buffer.getInt() & 0xFFFFFFFFL;
             case UINT64 -> buffer.getLong();
+        };
+    }
+
+    public static long read(ByteBuf buffer, int index, ValueSize size) {
+        return switch (size) {
+            case UINT8  -> buffer.getUnsignedByte(index);
+            case UINT16 -> buffer.getUnsignedShortLE(index);
+            case UINT32 -> buffer.getUnsignedIntLE(index);
+            case UINT64 -> buffer.getLongLE(index);
         };
     }
 }

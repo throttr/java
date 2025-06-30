@@ -25,6 +25,8 @@ import org.junit.jupiter.api.*;
 import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -215,7 +217,115 @@ class ServiceTest {
         service.close();
     }
 
+    @Test
+    void shouldSupportListAfterInsert() throws Exception {
+        ValueSize sized = ValueSize.UINT8;
+        String size = System.getenv().getOrDefault("THROTTR_SIZE", "uint16");
+        if ("uint16".equals(size)) sized = ValueSize.UINT16;
+        if ("uint32".equals(size)) sized = ValueSize.UINT32;
+        if ("uint64".equals(size)) sized = ValueSize.UINT64;
 
+        Service service = new Service("127.0.0.1", 9000, sized, 1);
+        service.connect();
+
+        String key = UUID.randomUUID().toString();
+
+        StatusResponse insert = (StatusResponse) service.send(new InsertRequest(99, TTLType.SECONDS, 60, key));
+        assertTrue(insert.success());
+
+        // LIST
+        ListResponse list = (ListResponse) service.send(new ListRequest());
+        assertTrue(list.isSuccess());
+        assertNotNull(list.getItems());
+        assertTrue(list.getItems().stream().anyMatch(item -> item.getKey().equals(key)));
+
+        service.close();
+    }
+
+    @Test
+    void shouldSupportStatsAfterSet() throws Exception {
+        ValueSize sized = ValueSize.UINT8;
+        String size = System.getenv().getOrDefault("THROTTR_SIZE", "uint16");
+        if ("uint16".equals(size)) sized = ValueSize.UINT16;
+        if ("uint32".equals(size)) sized = ValueSize.UINT32;
+        if ("uint64".equals(size)) sized = ValueSize.UINT64;
+
+        Service service = new Service("127.0.0.1", 9000, sized, 1);
+        service.connect();
+
+        String key = UUID.randomUUID().toString();
+        String value = "EHLO";
+
+        StatusResponse set = (StatusResponse) service.send(new SetRequest(TTLType.SECONDS, 30, key, value));
+        assertTrue(set.success());
+
+        Awaitility.await().atMost(Duration.ofMillis(30000)).untilAsserted(() -> {
+            // STATS
+            StatsResponse stats = (StatsResponse) service.send(new StatsRequest());
+            assertTrue(stats.isSuccess());
+            assertNotNull(stats.getItems());
+            assertTrue(stats.getItems().stream().anyMatch(item -> item.getKey().equals(key)));
+
+            service.close();
+        });
+
+    }
+
+    @Test
+    void shouldSupportInfoAfterInsert() throws Exception {
+        ValueSize sized = ValueSize.UINT8;
+        String size = System.getenv().getOrDefault("THROTTR_SIZE", "uint16");
+        if ("uint16".equals(size)) sized = ValueSize.UINT16;
+        if ("uint32".equals(size)) sized = ValueSize.UINT32;
+        if ("uint64".equals(size)) sized = ValueSize.UINT64;
+        Service service = new Service("127.0.0.1", 9000, sized, 1);
+        service.connect();
+
+        String key = UUID.randomUUID().toString();
+        StatusResponse insert = (StatusResponse) service.send(new InsertRequest(99, TTLType.SECONDS, 60, key));
+        assertTrue(insert.success());
+
+        InfoResponse info = (InfoResponse) service.send(new InfoRequest());
+        assertTrue(info.success);
+
+        assertTrue(info.totalRequests >= 0);
+        assertTrue(info.totalInsertRequests >= 0);
+        assertTrue(info.totalRequestsPerMinute >= 0);
+        assertTrue(info.totalReadBytes >= 0);
+        assertTrue(info.totalWriteBytes >= 0);
+
+        service.close();
+    }
+
+    @Test
+    void shouldSupportStatAfterInsert() throws Exception {
+        ValueSize sized = ValueSize.UINT8;
+        String size = System.getenv().getOrDefault("THROTTR_SIZE", "uint16");
+        if ("uint16".equals(size)) sized = ValueSize.UINT16;
+        if ("uint32".equals(size)) sized = ValueSize.UINT32;
+        if ("uint64".equals(size)) sized = ValueSize.UINT64;
+
+        Service service = new Service("127.0.0.1", 9000, sized, 1);
+        service.connect();
+
+        String key = UUID.randomUUID().toString();
+        StatusResponse insert = (StatusResponse) service.send(new InsertRequest(42, TTLType.SECONDS, 30, key));
+        assertTrue(insert.success());
+
+        StatResponse errorStat = (StatResponse) service.send(new StatRequest("MISSING_KEY"));
+        assertFalse(errorStat.success());
+
+        Awaitility.await().atMost(Duration.ofMillis(200)).untilAsserted(() -> {
+            StatResponse stat = (StatResponse) service.send(new StatRequest(key));
+            assertTrue(stat.success());
+            assertTrue(stat.readsPerMinute() >= 0);
+            assertTrue(stat.writesPerMinute() >= 0);
+            assertTrue(stat.totalReads() >= 0);
+            assertTrue(stat.totalWrites() >= 0);
+
+            service.close();
+        });
+    }
 
     @Test
     void shouldSupportBatchSetAndGet() throws Exception {
@@ -252,6 +362,221 @@ class ServiceTest {
         assertEquals("LOEH", new String(queryResponses.get(1).value()));
         service.close();
     }
+
+    @Test
+    void shouldSupportConnectionsRequest() throws Exception {
+        ValueSize sized = ValueSize.UINT8;
+        String size = System.getenv().getOrDefault("THROTTR_SIZE", "uint16");
+        if ("uint16".equals(size)) sized = ValueSize.UINT16;
+        if ("uint32".equals(size)) sized = ValueSize.UINT32;
+        if ("uint64".equals(size)) sized = ValueSize.UINT64;
+
+        Service service = new Service("127.0.0.1", 9000, sized, 1);
+        service.connect();
+
+        ConnectionsResponse res = (ConnectionsResponse) service.send(new ConnectionsRequest());
+        assertTrue(res.isSuccess());
+        assertNotNull(res.getItems());
+
+        for (ConnectionsItem item : res.getItems()) {
+            assertNotNull(item);
+            assertNotNull(item.id);
+            assertEquals(32, item.id.length());
+            assertTrue(item.type == 0x00 || item.type == 0x01);
+            assertTrue(item.kind == 0x00 || item.kind == 0x01);
+            assertTrue(item.ipVersion == 0x04 || item.ipVersion == 0x06);
+            assertTrue(item.port > 0);
+            assertTrue(item.connectedAt > 0);
+        }
+
+        service.close();
+    }
+
+    @Test
+    void shouldSupportWhoamiRequest() throws Exception {
+        ValueSize sized = ValueSize.UINT8;
+        String size = System.getenv().getOrDefault("THROTTR_SIZE", "uint16");
+        if ("uint16".equals(size)) sized = ValueSize.UINT16;
+        if ("uint32".equals(size)) sized = ValueSize.UINT32;
+        if ("uint64".equals(size)) sized = ValueSize.UINT64;
+
+        Service service = new Service("127.0.0.1", 9000, sized, 1);
+        service.connect();
+
+        WhoamiResponse res = (WhoamiResponse) service.send(new WhoAmiRequest());
+        assertTrue(res.success);
+        assertNotNull(res.uuid);
+        assertEquals(32, res.uuid.length());
+
+        service.close();
+    }
+
+    @Test
+    void shouldSupportConnectionRequest() throws Exception {
+        ValueSize sized = ValueSize.UINT8;
+        String size = System.getenv().getOrDefault("THROTTR_SIZE", "uint16");
+        if ("uint16".equals(size)) sized = ValueSize.UINT16;
+        if ("uint32".equals(size)) sized = ValueSize.UINT32;
+        if ("uint64".equals(size)) sized = ValueSize.UINT64;
+
+        Service service = new Service("127.0.0.1", 9000, sized, 1);
+        service.connect();
+
+        // Primero hacemos WHOAMI para obtener nuestro propio ID de conexión
+        WhoamiResponse whoami = (WhoamiResponse) service.send(new WhoAmiRequest());
+        assertTrue(whoami.success);
+        assertNotNull(whoami.uuid);
+        assertEquals(32, whoami.uuid.length());
+
+        // Enviamos la solicitud CONNECTION con el mismo índice de conexión
+        ConnectionResponse response = (ConnectionResponse) service.send(new ConnectionRequest(whoami.uuid));
+        assertTrue(response.found);
+        assertNotNull(response.item);
+
+        ConnectionResponse errorResponse = (ConnectionResponse) service.send(new ConnectionRequest("b7e0f7c8b6a04c678727303c3a90b341"));
+        assertFalse(errorResponse.found);
+        assertNull(errorResponse.item);
+
+        ConnectionsItem item = response.item;
+        assertEquals(32, item.id.length());
+        assertTrue(item.type == 0x00 || item.type == 0x01);
+        assertTrue(item.kind == 0x00 || item.kind == 0x01);
+        assertTrue(item.ipVersion == 0x04 || item.ipVersion == 0x06);
+        assertTrue(item.port > 0);
+        assertTrue(item.connectedAt > 0);
+
+        service.close();
+    }
+
+    @Test
+    void shouldSupportChannelsRequest() throws Exception {
+        ValueSize sized = ValueSize.UINT8;
+        String size = System.getenv().getOrDefault("THROTTR_SIZE", "uint16");
+        if ("uint16".equals(size)) sized = ValueSize.UINT16;
+        if ("uint32".equals(size)) sized = ValueSize.UINT32;
+        if ("uint64".equals(size)) sized = ValueSize.UINT64;
+
+        Service service = new Service("127.0.0.1", 9000, sized, 1);
+        service.connect();
+
+        ChannelsResponse response = (ChannelsResponse) service.send(new ChannelsRequest());
+        assertTrue(response.success);
+        assertNotNull(response.items);
+        assertTrue(response.items.size() >= 2);
+
+        service.close();
+    }
+
+    @Test
+    void shouldSupportChannelRequest() throws Exception {
+        ValueSize sized = ValueSize.UINT8;
+        String size = System.getenv().getOrDefault("THROTTR_SIZE", "uint16");
+        if ("uint16".equals(size)) sized = ValueSize.UINT16;
+        if ("uint32".equals(size)) sized = ValueSize.UINT32;
+        if ("uint64".equals(size)) sized = ValueSize.UINT64;
+
+        Service service = new Service("127.0.0.1", 9000, sized, 1);
+        service.connect();
+
+        // Primero obtenemos nuestro UUID con WHOAMI
+        WhoamiResponse whoami = (WhoamiResponse) service.send(new WhoAmiRequest());
+        assertTrue(whoami.success);
+        assertNotNull(whoami.uuid);
+        assertEquals(32, whoami.uuid.length());
+
+        // Ahora pedimos el CHANNEL de nuestro propio UUID
+        ChannelResponse response = (ChannelResponse) service.send(new ChannelRequest(whoami.uuid));
+        assertTrue(response.success);
+        assertNotNull(response.connections);
+        assertTrue(response.connections.size() >= 1);
+
+        ChannelResponse errorResponse = (ChannelResponse) service.send(new ChannelRequest("ABCCDEEF"));
+        assertFalse(errorResponse.success);
+
+        for (ChannelConnectionItem item : response.connections) {
+            assertNotNull(item.id);
+            assertEquals(32, item.id.length());
+            assertTrue(item.subscribedAt >= 0);
+            assertTrue(item.readBytes >= 0);
+            assertTrue(item.writeBytes >= 0);
+        }
+
+        service.close();
+    }
+
+    @Test
+    void shouldReceivePublishedMessageAfterSubscribe() throws Exception {
+        ValueSize sized = ValueSize.UINT8;
+        String size = System.getenv().getOrDefault("THROTTR_SIZE", "uint16");
+        if ("uint16".equals(size)) sized = ValueSize.UINT16;
+        if ("uint32".equals(size)) sized = ValueSize.UINT32;
+        if ("uint64".equals(size)) sized = ValueSize.UINT64;
+
+        Service service = new Service("127.0.0.1", 9000, sized, 1);
+        service.connect();
+
+        String channel = "test-channel-" + UUID.randomUUID();
+        String payload = "hola mundo";
+
+        CountDownLatch latch = new CountDownLatch(1);
+        StringBuilder received = new StringBuilder();
+
+        service.getConnection().subscribe(channel, msg -> {
+            received.append(msg);
+            latch.countDown();
+        });
+
+
+        Awaitility.await().atMost(Duration.ofMillis(200)).untilAsserted(() -> {
+            StatusResponse pub = (StatusResponse) service.send(new PublishRequest(channel, payload));
+            assertTrue(pub.success());
+
+            boolean success = latch.await(2, TimeUnit.SECONDS);
+            assertTrue(success, "No se recibió el mensaje a tiempo");
+            assertEquals(payload, received.toString());
+
+            service.close();
+        });
+    }
+
+    @Test
+    void shouldUnsubscribeAndNotReceiveMessages() throws Exception {
+        ValueSize sized = ValueSize.UINT8;
+        String size = System.getenv().getOrDefault("THROTTR_SIZE", "uint16");
+        if ("uint16".equals(size)) sized = ValueSize.UINT16;
+        if ("uint32".equals(size)) sized = ValueSize.UINT32;
+        if ("uint64".equals(size)) sized = ValueSize.UINT64;
+
+        Service service = new Service("127.0.0.1", 9000, sized, 1);
+        service.connect();
+
+        String channel = "test-channel-" + UUID.randomUUID();
+        String payload = "hola mundo";
+
+        CountDownLatch latch = new CountDownLatch(1);
+        StringBuilder received = new StringBuilder();
+
+        var conn = service.getConnection();
+
+        conn.subscribe(channel, msg -> {
+            received.append(msg);
+            latch.countDown();
+        });
+
+        Awaitility.await().atMost(Duration.ofMillis(3000)).untilAsserted(() -> {
+            conn.unsubscribe(channel);
+
+            StatusResponse pub = (StatusResponse) service.send(new PublishRequest(channel, payload));
+            assertTrue(pub.success());
+
+            boolean success = latch.await(2, TimeUnit.SECONDS);
+            assertFalse(success, "Se recibió mensaje después de desuscribirse");
+
+            service.close();
+        });
+    }
+
+
 
     @Test
     void shouldThrowIfMaxConnectionsIsZero() {

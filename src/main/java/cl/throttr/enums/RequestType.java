@@ -47,7 +47,72 @@ public enum RequestType {
     /**
      * Get
      */
-    GET(0x06);
+    GET(0x06),
+
+    /**
+     * List
+     */
+    LIST(0x07),
+
+    /**
+     * List
+     */
+    INFO(0x08),
+
+    /**
+     * Stat
+     */
+    STAT(0x09),
+
+    /**
+     * Stats
+     */
+    STATS(0x10),
+
+    /**
+     * Subscribe
+     */
+    SUBSCRIBE(0x11),
+
+    /**
+     * Unsubscribe
+     */
+    UNSUBSCRIBE(0x12),
+
+    /**
+     * Publish
+     */
+    PUBLISH(0x13),
+
+    /**
+     * Connections
+     */
+    CONNECTIONS(0x14),
+
+    /**
+     * Connection
+     */
+    CONNECTION(0x15),
+
+    /**
+     * Channels
+     */
+    CHANNELS(0x16),
+
+    /**
+     * Channel
+     */
+    CHANNEL(0x17),
+
+    /**
+     * WhoAmI
+     */
+    WHOAMI(0x18),
+
+    /**
+     * Event
+     */
+    EVENT(0x19);
 
     /**
      * Value

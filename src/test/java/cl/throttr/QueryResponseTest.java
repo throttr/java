@@ -27,32 +27,4 @@ class QueryResponseTest {
         assertEquals(TTLType.SECONDS, response.ttlType());
         assertEquals(5678, response.ttl());
     }
-
-    @Test
-    void shouldParseValidQueryResponseWithSuccessFalse() {
-        ByteBuffer buffer = ByteBuffer.allocate(1 + 2 + 1 + 2).order(ByteOrder.LITTLE_ENDIAN);
-        buffer.put((byte) 0);                // success
-        buffer.putShort((short) 4321);       // quota
-        buffer.put((byte) 3);                // TTLType.MILLISECONDS
-        buffer.putShort((short) 8765);       // ttl
-
-        QueryResponse response = QueryResponse.fromBytes(buffer.array(), ValueSize.UINT16);
-
-        assertFalse(response.success());
-        assertEquals(4321, response.quota());
-        assertEquals(TTLType.MILLISECONDS, response.ttlType());
-        assertEquals(8765, response.ttl());
-    }
-
-    @Test
-    void shouldThrowIfLengthIsInvalid() {
-        byte[] data = new byte[5]; // intentionally incorrect size
-
-        IllegalArgumentException ex = assertThrows(
-                IllegalArgumentException.class,
-                () -> QueryResponse.fromBytes(data, ValueSize.UINT16)
-        );
-
-        assertEquals("Invalid QueryResponse length: 5", ex.getMessage());
-    }
 }

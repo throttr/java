@@ -1,6 +1,7 @@
 package cl.throttr;
 
 import cl.throttr.enums.ValueSize;
+import cl.throttr.requests.Serializer;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -15,7 +16,7 @@ class ConnectionTest {
 
         IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
-                () -> Connection.getRequestBuffer(invalidRequest, ValueSize.UINT16)
+                () -> Serializer.invoke(invalidRequest, ValueSize.UINT16)
         );
 
         assertEquals("Unsupported request type", ex.getMessage());
@@ -25,7 +26,7 @@ class ConnectionTest {
     void shouldThrowIfNullRequestGiven() {
         IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
-                () -> Connection.getRequestBuffer(null, ValueSize.UINT16)
+                () -> Serializer.invoke(null, ValueSize.UINT16)
         );
 
         assertEquals("Unsupported request type", ex.getMessage());

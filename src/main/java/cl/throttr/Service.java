@@ -20,6 +20,7 @@ import cl.throttr.enums.ValueSize;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -76,9 +77,9 @@ public class Service implements AutoCloseable {
     /**
      * Connect
      *
-     * @throws IOException Sockets can fail
+     * @throws InterruptedException Can be interrupted
      */
-    public void connect() throws IOException {
+    public void connect() throws InterruptedException {
         for (int i = 0; i < maxConnections; i++) {
             Connection conn = new Connection(host, port, size);
             connections.add(conn);
@@ -91,7 +92,7 @@ public class Service implements AutoCloseable {
      * @param request Requests
      * @return Object
      */
-    public Object send(Object request) throws IOException {
+    public Object send(Object request) throws IOException, InterruptedException, ExecutionException {
         if (connections.isEmpty()) {
             throw new IllegalStateException("There are no available connections.");
         }
@@ -103,10 +104,20 @@ public class Service implements AutoCloseable {
     }
 
     /**
+     * Get a direct connection (for subscription or fixed binding)
+     *
+     * @return Connection
+     */
+    public Connection getConnection() {
+        int index = roundRobinIndex.getAndUpdate(i -> (i + 1) % connections.size());
+        return connections.get(index);
+    }
+
+    /**
      * Close
      */
     @Override
-    public void close() throws IOException {
+    public void close() throws InterruptedException {
         for (Connection conn : connections) {
             conn.close();
         }
