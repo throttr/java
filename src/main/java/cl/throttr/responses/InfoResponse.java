@@ -136,10 +136,6 @@ public class InfoResponse {
     }
 
     public static InfoResponse fromBytes(byte[] full) {
-        if (full.length != 433) {
-            throw new IllegalArgumentException("Expected 433 bytes, got " + full.length);
-        }
-
         boolean success = full[0] == 0x01;
         ByteBuffer bb = ByteBuffer.wrap(full, 1, 432).order(ByteOrder.LITTLE_ENDIAN);
         long[] values = new long[52];
